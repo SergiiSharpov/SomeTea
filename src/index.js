@@ -16,6 +16,15 @@ import { setObjectLayerByMaterialName } from './utils/setObjectLayerByMaterialNa
 let scene, camera, renderer, controls;
 const composer = getComposer();
 
+const hideLoader = () => {
+  let loader = document.body.querySelector('.loader-container');
+
+  loader.style.opacity = 0;
+  setTimeout(() => {
+    loader.parentNode.removeChild(loader);
+  }, 300);
+}
+
 const loadScene = (data) => {
   const loader = new ObjectLoader();
 
@@ -41,6 +50,8 @@ const loadScene = (data) => {
   window.addEventListener('resize', composer.getOnResize());
 
   composer.getRenderFn()();
+
+  hideLoader();
 }
 
 

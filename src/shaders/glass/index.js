@@ -2,16 +2,20 @@ import {UniformsLib, UniformsUtils, DoubleSide} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
+import { Color } from 'three';
 
 /**
  * Based on Nvidia Cg tutorial
  */
-const FresnelShader = {
+const GlassShader = {
 	uniforms: UniformsUtils.merge([
     UniformsLib["common"],
     UniformsLib["normalmap"],
     {
-      envMap: {value: null}
+      envMap: {value: null},
+      cubeMap: {value: null},
+      roughness: {value: 0.0},
+      glassColor: {value: new Color(0.0, 0.5, 1.0)}
     }
   ]),
 
@@ -19,7 +23,7 @@ const FresnelShader = {
     USE_NORMALMAP: "",
     TANGENTSPACE_NORMALMAP: "",
 
-    USE_UV: "",
+    USE_UV: ""
   },
 
 	vertexShader,
@@ -30,4 +34,4 @@ const FresnelShader = {
   side: DoubleSide
 };
 
-export default FresnelShader;
+export default GlassShader;

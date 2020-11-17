@@ -21,6 +21,7 @@
     "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
+    "dat.gui": "^0.7.7",
     "http-server": "^0.12.3",
     "three": "^0.122.0"
   }

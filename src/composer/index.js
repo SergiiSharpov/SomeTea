@@ -1,5 +1,5 @@
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { MainPass, LAYERS } from './mainPass';
+import { MainPass, LAYERS, LAYERS_OBJECTS } from './mainPass';
 
 const getComposer = () => {
   let onRender = () => {};
@@ -51,5 +51,6 @@ const getComposer = () => {
 
 export {
   getComposer,
-  LAYERS
+  LAYERS,
+  LAYERS_OBJECTS
 }

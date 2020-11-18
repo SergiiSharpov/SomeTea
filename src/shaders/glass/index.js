@@ -15,7 +15,12 @@ const GlassShader = {
       envMap: {value: null},
       cubeMap: {value: null},
       roughness: {value: 0.0},
-      glassColor: {value: new Color(0.0, 0.5, 1.0)}
+      reflectivity: {value: 0.96},
+      glassColor: {value: new Color(1.0, 1.0, 1.0)},
+      fresnelPower: {value: 1.0},
+      absorption: {value: 0.25},
+      normalPower: {value: 1.0},
+      refractionRatio: {value: 0.0}
     }
   ]),
 
@@ -31,7 +36,10 @@ const GlassShader = {
   
   transparent: true,
 
-  side: DoubleSide
+  side: DoubleSide,
+
+  // depthWrite: false,
+  // depthTest: false
 };
 
 export default GlassShader;

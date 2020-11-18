@@ -53,12 +53,13 @@ const setGlassMaterial = (mesh, texture, cubeTexture) => {
   patchMaterial(mesh, glassMaterial);
 }
 
-const setIceMaterial = (mesh, texture) => {
+const setIceMaterial = (mesh, texture, envTexture) => {
   const iceMaterial = new ShaderMaterial( {
     ...IceShader,
     uniforms: {
       ...UniformsUtils.clone( IceShader.uniforms ),
-      envMap: {value: texture}
+      noiseMap: {value: texture},
+      envMap: {value: envTexture}
     }
   });
 
@@ -66,7 +67,7 @@ const setIceMaterial = (mesh, texture) => {
 }
 
 export class MainPass extends Pass {
-  constructor(scene, camera, renderer) {
+  constructor(scene, camera, renderer, environmentMap) {
     super();
 
     this.scene = scene;
@@ -112,7 +113,7 @@ export class MainPass extends Pass {
 
     getObjectsByLayer(this.scene, glassLayer, (object) => {
       if (object.isMesh) {
-        setGlassMaterial(object, this.renderTargetReflectionBuffer.texture, scene.background);
+        setGlassMaterial(object, this.renderTargetReflectionBuffer.texture, environmentMap);
         this.glassObjects.push(object);
 
         //object.visible = false;
@@ -121,7 +122,7 @@ export class MainPass extends Pass {
 
     getObjectsByLayer(this.scene, iceLayer, (object) => {
       if (object.isMesh) {
-        setIceMaterial(object, this.renderTargetIceBuffer.texture);
+        setIceMaterial(object, this.renderTargetIceBuffer.texture, environmentMap);
         this.iceObjects.push(object);
       }
     })
@@ -131,7 +132,7 @@ export class MainPass extends Pass {
         //setIceMaterial(object);
         this.waterObjects.push(object);
 
-        object.material.onBeforeCompile = console.log;
+        //object.material.onBeforeCompile = console.log;
 
         //object.visible = false;
       }
@@ -167,7 +168,7 @@ export class MainPass extends Pass {
 
     /** Finish Ice buffer render */
 
-    this.scene.background = background;
+    
 
     /** Render All the staff inside the glass */
     this.camera.layers.enableAll();
@@ -179,6 +180,8 @@ export class MainPass extends Pass {
     renderer.render(this.scene, this.camera);
 
     /** Finish drawing inner glass staff */
+
+    this.scene.background = background;
     
     /** Render smooth result */
     renderer.setRenderTarget(this.renderTargetFXAABuffer);

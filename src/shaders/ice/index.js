@@ -10,9 +10,12 @@ const IcePrepassShader = {
     UniformsLib["normalmap"],
     {
       envMap: {value: null},
+      noiseMap: {value: null},
       resolution: {value: new Vector2(512, 512)},
-      depthScale: {value: 0.005},
-      noiseScale: {value: 64.0},
+      fresnelPower: {value: 0.5},
+      bumpScale: {value: 0.2},
+      reflectivity: {value: 0.75},
+      roughness: {value: 0.0},
       iceColor: {value: new Color(110.0 / 255.0, 154.0 / 255.0, 188.0 / 255.0)}
     }
   ]),

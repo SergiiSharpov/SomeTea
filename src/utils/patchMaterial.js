@@ -2,7 +2,6 @@
 const MAPS_TO_COPY = ['map', 'normalMap', 'alphaMap', 'bumpMap'];
 export const patchMaterial = (object, material) => {
   const oldMaterial = object.material;
-  oldMaterial.onBeforeCompile = (shader) => console.log(shader)
 
   object.material = material;
 

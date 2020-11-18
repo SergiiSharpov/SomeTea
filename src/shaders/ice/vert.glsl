@@ -7,8 +7,6 @@ varying vec3 vBitangent;
 varying vec3 vViewPosition;
 varying vec4 vViewUv;
 
-varying vec4 vViewTransformedUv;
-
 uniform float depthScale;
 
 #include <uv_pars_vertex>
@@ -29,10 +27,6 @@ void main() {
   vViewUv = transformedPosition;
   vViewUv.xyz /= vViewUv.w;
   vViewUv.xyz = (vViewUv.xyz + 1.0) * 0.5;
-
-  vViewTransformedUv = modelViewProjection * vec4( position + vNormal * depthScale, 1.0 );
-  vViewTransformedUv.xyz /= vViewTransformedUv.w;
-  vViewTransformedUv.xyz = (vViewTransformedUv.xyz + 1.0) * 0.5;
 
   
   vViewPosition = - mvPosition.xyz;

@@ -111,7 +111,7 @@ void main() {
 	vec3 v_refraction = refract(screenViewDirection, screenNormal, Eta);
 	vec3 v_reflection = reflect(screenViewDirection, screenNormal);
 	
-	float noiseValue = simplex3d_fractal(vPosition.xyz * 100.0);//vec3(noiseValue) //v_refraction * 1000.0
+	float noiseValue = simplex3d_fractal(vPosition.xyz * 200.0);
 	noiseValue = 0.5 + 0.5*noiseValue;
 
 

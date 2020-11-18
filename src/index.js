@@ -2,19 +2,21 @@ import {
   ObjectLoader,
   PerspectiveCamera,
   WebGLRenderer,
-  ShaderChunk,
   CubeTextureLoader
 } from 'three';
+
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
+
 import * as dat from 'dat.gui';
 
-window.ShaderChunk = ShaderChunk;
 import { fitCameraToObject } from './utils/fitCameraToObject';
 
 import { setObjectLayerByName } from './utils/setObjectLayerByName';
 import { setObjectLayerByMaterialName } from './utils/setObjectLayerByMaterialName';
 
 import { getComposer, LAYERS, LAYERS_OBJECTS } from './composer';
+import { AmbientLight, DirectionalLight, Scene } from 'three/build/three.module';
 
 let scene, camera, renderer, controls, textureCube, gui;
 const composer = getComposer();
@@ -31,11 +33,18 @@ const hideLoader = () => {
 const GUI_STATE = {
   glass: {
     roughness: 0.0,
-    color: [0, 128, 255]
+    color: [255, 255, 255],
+    fresnelPower: 1.0,
+    reflectivity: 0.75,
+    absorption: 0.25,
+    normalPower: 1.0,
+    refractionRatio: 0.0
   },
   ice: {
-    depthScale: 0.005,
-    noiseScale: 64.0,
+    roughness: 0.0,
+    fresnelPower: 0.5,
+    bumpScale: 0.2,
+    reflectivity: 0.75,
     color: [110.0, 154.0, 188.0]
   },
   currentView: 'all',
@@ -109,6 +118,47 @@ const createGui = (scene, renderer) => {
       glass.material.uniforms.roughness.value = v;
     }
   })
+
+  glassFolder.add(GUI_STATE.glass, 'reflectivity', 0.0, 1.0, 0.01)
+  .name('Reflectivity')
+  .onChange((v) => {
+    for (let glass of glassObjects) {
+      glass.material.uniforms.reflectivity.value = v;
+    }
+  })
+
+  glassFolder.add(GUI_STATE.glass, 'fresnelPower', 0.0, 2.0, 0.01)
+  .name('Fresnel power')
+  .onChange((v) => {
+    for (let glass of glassObjects) {
+      glass.material.uniforms.fresnelPower.value = v;
+    }
+  })
+
+  glassFolder.add(GUI_STATE.glass, 'absorption', 0.0, 1.0, 0.01)
+  .name('Light absorption')
+  .onChange((v) => {
+    for (let glass of glassObjects) {
+      glass.material.uniforms.absorption.value = v;
+    }
+  })
+
+  glassFolder.add(GUI_STATE.glass, 'normalPower', 0.0, 1.0, 0.01)
+  .name('Normal power')
+  .onChange((v) => {
+    for (let glass of glassObjects) {
+      glass.material.uniforms.normalPower.value = v;
+    }
+  })
+
+  glassFolder.add(GUI_STATE.glass, 'refractionRatio', 0.0, 1.0, 0.01)
+  .name('Refraction ratio')
+  .onChange((v) => {
+    for (let glass of glassObjects) {
+      glass.material.uniforms.refractionRatio.value = v;
+    }
+  })
+
   
   let iceFolder = gui.addFolder('Ice');
 
@@ -120,45 +170,63 @@ const createGui = (scene, renderer) => {
     }
   })
 
-  iceFolder.add(GUI_STATE.ice, 'depthScale', 0.0, 0.01, 0.0005)
-  .name('Depth scale')
+  iceFolder.add(GUI_STATE.ice, 'fresnelPower', 0.0, 1.0, 0.01)
+  .name('Fresnel power')
   .onChange((v) => {
     for (let ice of iceObjects) {
-      ice.material.uniforms.depthScale.value = v;
+      ice.material.uniforms.fresnelPower.value = v;
     }
   })
 
-  iceFolder.add(GUI_STATE.ice, 'noiseScale', 0.0, 256, 1)
-  .name('Noise scale')
+  iceFolder.add(GUI_STATE.ice, 'roughness', 0.0, 1.0, 0.01)
+  .name('Roughness')
   .onChange((v) => {
     for (let ice of iceObjects) {
-      ice.material.uniforms.noiseScale.value = v;
+      ice.material.uniforms.roughness.value = v;
+    }
+  })
+
+  iceFolder.add(GUI_STATE.ice, 'bumpScale', 0.0, 0.99, 0.01)
+  .name('Bump scale')
+  .onChange((v) => {
+    for (let ice of iceObjects) {
+      ice.material.uniforms.bumpScale.value = v;
+    }
+  })
+
+  iceFolder.add(GUI_STATE.ice, 'reflectivity', 0.0, 1.0, 0.01)
+  .name('Reflectivity')
+  .onChange((v) => {
+    for (let ice of iceObjects) {
+      ice.material.uniforms.reflectivity.value = v;
     }
   })
   
 }
 
-const loadScene = (data) => {
+const initApp = (scene) => {
   const loader = new ObjectLoader();
 
-  scene = loader.parse(data);
+  //scene = loader.parse(data);
 
   scene.background = textureCube;
 
+  console.log(scene)
+
   camera = new PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 10000 );
 
-  renderer = new WebGLRenderer({ antialias: false });
+  renderer = new WebGLRenderer({ antialias: false, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   controls = new OrbitControls(camera, renderer.domElement);
   fitCameraToObject(camera, scene, 3.0, controls);
 
-  setObjectLayerByName(scene, /glass/i, LAYERS.GLASS);
-  setObjectLayerByName(scene, /liquid/i, LAYERS.WATER);
-  setObjectLayerByMaterialName(scene, /ice/i, LAYERS.ICE);
+  // setObjectLayerByName(scene, /glass/i, LAYERS.GLASS);
+  // setObjectLayerByName(scene, /liquid/i, LAYERS.WATER);
+  // setObjectLayerByMaterialName(scene, /ice/i, LAYERS.ICE);
 
-  composer.init(scene, camera, renderer);
+  composer.init(scene, camera, renderer, textureCube);
   createGui(scene, renderer);
 
 
@@ -179,10 +247,77 @@ const loadEnvironment = () => {
   })
 }
 
+const loadModel = (path) => {
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader();
+
+    loader.load(
+      path,
+      resolve,
+      null,
+      reject
+    )
+  })
+}
+
+const loadScene = async () => {
+  let Glass = await loadModel('/assets/models/Fuze_Glass_01.glb');
+  let Ice = await loadModel('/assets/models/Fuze_Ice_01.glb');
+  let Liquid = await loadModel('/assets/models/Fuze_Liquid_01.glb');
+  let Lemon = await loadModel('/assets/models/Lemon_Fuze_01.glb');
+  let Mint = await loadModel('/assets/models/Mint_Fuze_01.glb');
+  let Stirrer = await loadModel('/assets/models/Stirrer_Fuze_01.glb');
+
+
+
+  const scene = new Scene();
+
+  [
+    ...Glass.scene.children.map(obj => {
+      if (obj.isMesh) {
+        obj.layers.set(LAYERS.GLASS)
+      }
+
+      return obj;
+    }),
+    ...Ice.scene.children.map(obj => {
+      if (obj.isMesh) {
+        obj.layers.set(LAYERS.ICE)
+      }
+
+      return obj;
+    }),
+    ...Liquid.scene.children.map(obj => {
+      if (obj.isMesh) {
+        obj.material.transparent = true;
+        obj.material.opacity = 0.68;
+
+        obj.layers.set(LAYERS.WATER)
+      }
+
+      return obj;
+    }),
+    ...Lemon.scene.children,
+    ...Mint.scene.children,
+    ...Stirrer.scene.children
+  ].map(obj => scene.add(obj));
+  
+
+  const dirLight = new DirectionalLight(0xffffff, 1.0);
+  dirLight.position.set(0.808049, 0.685002, 0.42915);
+
+  scene.add(dirLight)
+  scene.add(new AmbientLight(0xffffff, 0.5))
+
+  return scene;
+}
+
 
 const SCENE_PATH = '/assets/scenes/scene.json';
 loadEnvironment().then(() => {
-  fetch(SCENE_PATH)
-  .then(res => res.json())
-  .then(loadScene);
+  // fetch(SCENE_PATH)
+  // .then(res => res.json())
+  // .then(loadScene);
+
+  loadScene().then(initApp)
 })

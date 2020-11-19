@@ -1,29 +1,12 @@
 varying vec3 vPosition;
 
-varying vec3 vNormal;
-varying vec3 vTangent;
-varying vec3 vBitangent;
-
-varying vec3 vViewPosition;
-varying vec4 vViewUv;
-
-#include <uv_pars_vertex>
-
 void main() {
-  #include <uv_vertex>
+  vec3 transformed = vec3( position );
 
-  #include <begin_vertex>
-  #include <project_vertex>
+  vec4 mvPosition = vec4( transformed, 1.0 );
+  mvPosition = modelViewMatrix * mvPosition;
 
-	vPosition = vec3( modelMatrix * vec4( position, 1.0 ));
-  vNormal = normalize( vec3(modelMatrix * vec4(normal, 0.0)) );
-  
-  vec4 transformedPosition = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-  vViewUv = transformedPosition;
-  vViewUv.xyz /= vViewUv.w;
-  vViewUv.xyz = (vViewUv.xyz + 1.0) * 0.5;
-  
-  vViewPosition = - mvPosition.xyz;
+	vPosition = vec3( modelMatrix *  vec4( transformed, 1.0 ));
 
-	gl_Position = transformedPosition;
+	gl_Position = projectionMatrix * mvPosition;
 }

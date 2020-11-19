@@ -6,7 +6,8 @@ import {
   RGBAFormat, 
   WebGLRenderTarget,
   WebGLMultisampleRenderTarget,
-  RepeatWrapping
+  RepeatWrapping,
+  LinearMipMapLinearFilter
 } from 'three';
 
 import { Pass } from 'three/examples/jsm/postprocessing/Pass';
@@ -78,13 +79,15 @@ export class MainPass extends Pass {
 
     const pars = { minFilter: LinearFilter, magFilter: LinearFilter, format: RGBAFormat, wrapS: RepeatWrapping, wrapT: RepeatWrapping };
 
-    this.renderTargetReflectionBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, pars );
+    this.renderTargetReflectionBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
     this.renderTargetReflectionBuffer.texture.name = "ReflectionsPass.depth";
-    this.renderTargetReflectionBuffer.texture.generateMipmaps = false;
+    this.renderTargetReflectionBuffer.texture.generateMipmaps = true;
 
-    this.renderTargetIceBuffer = new WebGLRenderTarget( 1024, 1024, pars );
+    this.renderTargetIceBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
     this.renderTargetIceBuffer.texture.name = "IcePrePass.depth";
-    this.renderTargetIceBuffer.texture.generateMipmaps = false;
+    this.renderTargetIceBuffer.texture.generateMipmaps = true;
+
+    console.log(this.renderTargetIceBuffer)
 
     this.renderTargetFXAABuffer = new WebGLMultisampleRenderTarget( 1024, 1024, pars );
     this.renderTargetFXAABuffer.texture.name = "FXAAPass.depth";
@@ -137,6 +140,8 @@ export class MainPass extends Pass {
         //object.visible = false;
       }
     })
+
+    renderer.compile(scene, camera);
   }
 
   setSize(w, h) {

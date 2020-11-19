@@ -4,18 +4,19 @@ varying vec3 vNormal;
 varying vec3 vTangent;
 varying vec3 vBitangent;
 
+varying vec2 vUv;
+
 varying vec3 vViewPosition;
 varying vec4 vViewUv;
 
 uniform float depthScale;
 
-#include <uv_pars_vertex>
-
 void main() {
-  #include <uv_vertex>
+  vUv = uv;
 
-  #include <begin_vertex>
-  #include <project_vertex>
+  vec3 transformed = vec3( position );
+  vec4 mvPosition = vec4( transformed, 1.0 );
+  mvPosition = modelViewMatrix * mvPosition;
 
 	vPosition = modelMatrix * vec4( position, 1.0 );
   vNormal = normalize( vec3(modelMatrix * vec4(normal, 0.0)) );
@@ -31,5 +32,5 @@ void main() {
   
   vViewPosition = - mvPosition.xyz;
 
-	gl_Position = transformedPosition;
+	gl_Position = projectionMatrix * mvPosition;
 }

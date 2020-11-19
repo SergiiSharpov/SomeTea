@@ -2,7 +2,11 @@ import {
   ObjectLoader,
   PerspectiveCamera,
   WebGLRenderer,
-  CubeTextureLoader
+  CubeTextureLoader,
+
+  ShaderChunk,
+
+  AmbientLight, DirectionalLight, Scene
 } from 'three';
 
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
@@ -11,14 +15,11 @@ import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
 import * as dat from 'dat.gui';
 
 import { fitCameraToObject } from './utils/fitCameraToObject';
-
-import { setObjectLayerByName } from './utils/setObjectLayerByName';
-import { setObjectLayerByMaterialName } from './utils/setObjectLayerByMaterialName';
-
 import { getComposer, LAYERS, LAYERS_OBJECTS } from './composer';
-import { AmbientLight, DirectionalLight, Scene } from 'three/build/three.module';
 
-let scene, camera, renderer, controls, textureCube, gui;
+window.ShaderChunk = ShaderChunk;
+
+let camera, renderer, controls, textureCube, gui;
 const composer = getComposer();
 
 const hideLoader = () => {
@@ -36,9 +37,7 @@ const GUI_STATE = {
     color: [255, 255, 255],
     fresnelPower: 1.0,
     reflectivity: 0.75,
-    absorption: 0.25,
-    normalPower: 1.0,
-    refractionRatio: 0.0
+    absorption: 0.25
   },
   ice: {
     roughness: 0.0,
@@ -140,22 +139,6 @@ const createGui = (scene, renderer) => {
   .onChange((v) => {
     for (let glass of glassObjects) {
       glass.material.uniforms.absorption.value = v;
-    }
-  })
-
-  glassFolder.add(GUI_STATE.glass, 'normalPower', 0.0, 1.0, 0.01)
-  .name('Normal power')
-  .onChange((v) => {
-    for (let glass of glassObjects) {
-      glass.material.uniforms.normalPower.value = v;
-    }
-  })
-
-  glassFolder.add(GUI_STATE.glass, 'refractionRatio', 0.0, 1.0, 0.01)
-  .name('Refraction ratio')
-  .onChange((v) => {
-    for (let glass of glassObjects) {
-      glass.material.uniforms.refractionRatio.value = v;
     }
   })
 

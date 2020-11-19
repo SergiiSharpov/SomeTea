@@ -6,8 +6,6 @@ import { Color } from 'three/build/three.module';
 
 const IcePrepassShader = {
 	uniforms: UniformsUtils.merge([
-    UniformsLib["common"],
-    UniformsLib["normalmap"],
     {
       envMap: {value: null},
       noiseMap: {value: null},
@@ -19,13 +17,6 @@ const IcePrepassShader = {
       iceColor: {value: new Color(110.0 / 255.0, 154.0 / 255.0, 188.0 / 255.0)}
     }
   ]),
-
-  defines: {
-    USE_NORMALMAP: "",
-    TANGENTSPACE_NORMALMAP: "",
-
-    USE_UV: "",
-  },
 
 	vertexShader,
   fragmentShader,

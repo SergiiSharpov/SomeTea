@@ -7,7 +7,12 @@ import {
   WebGLRenderTarget,
   WebGLMultisampleRenderTarget,
   RepeatWrapping,
-  LinearMipMapLinearFilter
+  LinearMipMapLinearFilter,
+  Box3,
+  Vector2,
+
+  Clock,
+  BackSide
 } from 'three';
 
 import { Pass } from 'three/examples/jsm/postprocessing/Pass';
@@ -19,6 +24,8 @@ import { patchMaterial } from '../utils/patchMaterial';
 import GlassShader from './../shaders/glass';
 import IcePrepassShader from '../shaders/icePrepass';
 import IceShader from '../shaders/ice';
+import WaterShader from '../shaders/water';
+import { MeshBasicMaterial } from 'three/build/three.module';
 
 
 export const LAYERS = {
@@ -67,9 +74,46 @@ const setIceMaterial = (mesh, texture, envTexture) => {
   patchMaterial(mesh, iceMaterial);
 }
 
+const setWaterMaterial = (mesh, baseMaterial, envTexture) => {
+  let box = new Box3();
+  box.setFromObject(mesh);
+
+  let bounds = new Vector2(box.min.y, box.max.y);
+
+  const waterMaterial = new ShaderMaterial( {
+    ...WaterShader,
+    uniforms: {
+      ...UniformsUtils.clone( WaterShader.uniforms ),
+      envMap: {value: envTexture},
+      heightBounds: {value: bounds}
+    },
+    userData: {baseMaterial}
+  });
+
+  patchMaterial(mesh, waterMaterial);
+}
+
+const getBaseWaterMaterial = (envTexture) => {
+
+  const waterMaterial = new MeshBasicMaterial( {
+    color: 0x0088ff,
+
+    side: BackSide,
+
+    transparent: true,
+
+    depthTest: false,
+    depthWrite: true
+  });
+
+  return waterMaterial;
+}
+
 export class MainPass extends Pass {
   constructor(scene, camera, renderer, environmentMap) {
     super();
+
+    this.clock = new Clock(true);
 
     this.scene = scene;
     this.camera = camera;
@@ -108,6 +152,7 @@ export class MainPass extends Pass {
 
     this.FXAAQuad = new Pass.FullScreenQuad(this.FXAAMaterial);
 
+    this.baseWaterMaterial = getBaseWaterMaterial();
 
 
     this.glassObjects = [];
@@ -132,7 +177,7 @@ export class MainPass extends Pass {
 
     getObjectsByLayer(this.scene, waterLayer, (object) => {
       if (object.isMesh) {
-        //setIceMaterial(object);
+        setWaterMaterial(object, this.baseWaterMaterial, environmentMap);
         this.waterObjects.push(object);
 
         //object.material.onBeforeCompile = console.log;
@@ -150,12 +195,25 @@ export class MainPass extends Pass {
     this.renderTargetIceBuffer.setSize(w, h);
     this.renderTargetFXAABuffer.setSize(w, h);
     this.FXAAMaterial.uniforms.resolution.value.set(1 / w, 1 / h);
+
     for (let object of this.iceObjects) {
+      object.material.uniforms.resolution.value.set(w, h);
+    }
+
+    for (let object of this.waterObjects) {
       object.material.uniforms.resolution.value.set(w, h);
     }
   }
 
-  render(renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */) {
+  render(renderer, writeBuffer, readBuffer /*, deltaTime, maskActive*/) {
+    this.clock.getDelta();
+
+    //console.log(this.clock.elapsedTime)
+
+    for (let waterObject of this.waterObjects) {
+      waterObject.material.uniforms.time.value = this.clock.elapsedTime;
+    }
+
     let background = this.scene.background;
 
     this.scene.background = null;
@@ -190,11 +248,38 @@ export class MainPass extends Pass {
     
     /** Render smooth result */
     renderer.setRenderTarget(this.renderTargetFXAABuffer);
+    //renderer.setRenderTarget(null);
 
     this.camera.layers.enableAll();
 
     renderer.clear();
+
+    //this.scene.background = null;
+
+    
+
+    //this.scene.overrideMaterial = null;
+    this.camera.layers.enableAll();
+    
     renderer.render(this.scene, this.camera);
+
+    // this.camera.layers.disableAll();
+    // this.camera.layers.enable(LAYERS.WATER);
+
+    //this.scene.overrideMaterial = this.baseWaterMaterial;
+    // for (let waterObject of this.waterObjects) {
+    //   waterObject.userData.oldMaterial = waterObject.material;
+    //   waterObject.material = this.baseWaterMaterial;
+    // }
+
+    // renderer.render(this.scene, this.camera);
+
+    // for (let waterObject of this.waterObjects) {
+    //   waterObject.material = waterObject.userData.oldMaterial;
+    // }
+    
+    
+    //this.scene.background = background;
 
     renderer.setRenderTarget(null);
     this.FXAAQuad.render(renderer);

@@ -46,8 +46,16 @@ const GUI_STATE = {
     reflectivity: 0.75,
     color: [110.0, 154.0, 188.0]
   },
-  currentView: 'all',
-  waterOpacity: 0.68
+  water: {
+    opacity: 0.68,
+    height: 0.072,
+
+    uvScale: 16,
+
+    highWaterColor: [212, 139, 57],
+    waterColor: [173, 165, 48],
+  },
+  currentView: 'all'
 }
 
 const currentViewChoises = ['all', 'glass', 'ice', 'water']
@@ -92,11 +100,46 @@ const createGui = (scene, renderer) => {
     }
   })
 
-  gui.add(GUI_STATE, 'waterOpacity', 0.0, 1.0, 0.01)
+  let waterFolder = gui.addFolder('Water');
+
+  waterFolder.add(GUI_STATE.water, 'uvScale', -256, 256, 1)
+  .name('Waves scale')
+  .onChange((v) => {
+    for (let water of waterObjects) {
+      water.material.uniforms.uvScale.value = v;
+    }
+  })
+
+  waterFolder.addColor(GUI_STATE.water, 'waterColor')
+  .name('Color')
+  .onChange((v) => {
+    for (let water of waterObjects) {
+      water.material.uniforms.waterColor.value.fromArray(v.map(i => i / 255));
+      water.material.userData.baseMaterial.color.fromArray(v.map(i => i / 255));
+    }
+  })
+
+  waterFolder.addColor(GUI_STATE.water, 'highWaterColor')
+  .name('Peaks color')
+  .onChange((v) => {
+    for (let water of waterObjects) {
+      water.material.uniforms.highWaterColor.value.fromArray(v.map(i => i / 255));
+    }
+  })
+
+  waterFolder.add(GUI_STATE.water, 'opacity', 0.0, 1.0, 0.01)
   .name('Water opacity')
   .onChange((v) => {
-    for (let object of waterObjects) {
-      object.material.opacity = v;
+    for (let water of waterObjects) {
+      water.material.opacity = v;
+    }
+  })
+
+  waterFolder.add(GUI_STATE.water, 'height', 0.0001, 0.4, 0.001)
+  .name('Water height')
+  .onChange((v) => {
+    for (let water of waterObjects) {
+      water.material.uniforms.height.value = v;
     }
   })
 

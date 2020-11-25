@@ -33,6 +33,8 @@ export const fitCameraToObject = ( camera, object, offset, controls ) => {
   camera.far = cameraToFarEdge * 3;
   camera.updateProjectionMatrix();
 
+  console.log(camera.far, camera.near)
+
   if ( controls ) {
 
     // set camera to rotate around center of loaded object

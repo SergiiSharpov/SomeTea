@@ -1,4 +1,4 @@
-import {UniformsLib, UniformsUtils, DoubleSide, Vector2, FrontSide} from 'three';
+import {UniformsLib, UniformsUtils, DoubleSide, Vector2, FrontSide, LessDepth, NeverDepth, NotEqualDepth, GreaterDepth} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
@@ -9,16 +9,19 @@ const WaterShader = {
     {
       time: {value: 0.0},
 
-      height: {value: 0.072},
+      opacity: {value: 0.9},
+
+      height: {value: 1.0},
       heightBounds: {value: new Vector2()},
 
-      uvScale: {value: 16},
+      uvScale: {value: 128},
       waterColor: {value: new Color(173, 165, 48).multiplyScalar(1.0 / 255.0)},
       highWaterColor: {value: new Color(212, 139, 57).multiplyScalar(1.0 / 255.0)},
 
       resolution: {value: new Vector2()},
 
-      envMap: {value: null}
+      envMap: {value: null},
+      depthMap: {value: null}
     }
   ]),
 
@@ -29,15 +32,19 @@ const WaterShader = {
 
   // wireframe: true,
 
-  side: DoubleSide,
+  side: FrontSide,
 
 
-  // depthWrite: false,
-  // depthTest: true,
+  depthWrite: false,
+  depthTest: true,
 
-  // polygonOffset: true,
-  // polygonOffsetFactor: -4,
-  // polygonOffsetUnits: 1
+  // depthFunc: GreaterDepth
+
+  //alphaTest: 0.9,
+
+  polygonOffset: true,
+  polygonOffsetFactor: -4,
+  //polygonOffsetUnits: 1
 };
 
 export default WaterShader;

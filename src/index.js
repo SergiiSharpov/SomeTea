@@ -47,10 +47,10 @@ const GUI_STATE = {
     color: [110.0, 154.0, 188.0]
   },
   water: {
-    opacity: 0.68,
-    height: 0.072,
+    opacity: 0.9,
+    height: 1.0,
 
-    uvScale: 16,
+    uvScale: 128,
 
     highWaterColor: [212, 139, 57],
     waterColor: [173, 165, 48],
@@ -131,11 +131,11 @@ const createGui = (scene, renderer) => {
   .name('Water opacity')
   .onChange((v) => {
     for (let water of waterObjects) {
-      water.material.opacity = v;
+      water.material.uniforms.opacity.value = v;
     }
   })
 
-  waterFolder.add(GUI_STATE.water, 'height', 0.0001, 0.4, 0.001)
+  waterFolder.add(GUI_STATE.water, 'height', 0.01, 1.0, 0.01)
   .name('Water height')
   .onChange((v) => {
     for (let water of waterObjects) {

@@ -13,6 +13,7 @@ uniform float height;
 uniform vec2 heightBounds;
 
 varying float wavePower;
+varying mat4 vWPMatrix;
 
 void main() {
   vUv = uv;
@@ -33,6 +34,8 @@ void main() {
   vViewUv.xy = (vViewUv.xy + 1.0) * 0.5;
   
   vViewPosition = - mvPosition.xyz;
+
+  vWPMatrix = projectionMatrix * viewMatrix;
 
 	gl_Position = transformedPosition;
 }

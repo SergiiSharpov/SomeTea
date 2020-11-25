@@ -5,10 +5,13 @@ varying vec3 vNormal;
 varying vec3 vViewPosition;
 varying vec4 vViewUv;
 
-uniform sampler2D envMap;
-uniform sampler2D normalMap;
+uniform sampler2D waterMap;
 
+uniform sampler2D envMap;
+
+uniform sampler2D normalMap;
 uniform samplerCube cubeMap;
+
 
 uniform float roughness;
 uniform float fresnelPower;
@@ -86,10 +89,14 @@ void main() {
 
 	float frontLight = pow(clamp(dot(dirLight, targetNormal), 0., 1.) * 0.8, 4.0);
 
-	
+	float innerWaterAlpha = texture2D(waterMap, vViewUv.xy, mipMapLevel).a;
 
-	vec4 innerRefColor = texture2D(envMap, vViewUv.xy, mipMapLevel);
-	innerRefColor.a = clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0);
+	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy, mipMapLevel);
+	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy, mipMapLevel);
+
+	vec4 innerRefColor = mix(innerRefColor0, innerRefColor1, innerWaterAlpha);
+	//vec4 innerRefColor = texture2D(envMap, vViewUv.xy, mipMapLevel);
+	//innerRefColor.a = clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0);
 
 	vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
 
@@ -100,5 +107,5 @@ void main() {
 	
 	vec4 resultColor = baseColor + totalRefColor + fresnelResult + frontLight;
 
-	gl_FragColor = vec4(resultColor.rgb, 1.0);
+	gl_FragColor = vec4(vec3(resultColor), 1.0);//vec4(resultColor.rgb, 1.0);
 }

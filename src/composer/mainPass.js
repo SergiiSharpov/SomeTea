@@ -12,7 +12,9 @@ import {
   Vector2,
 
   Clock,
-  BackSide
+  BackSide,
+
+  DepthTexture
 } from 'three';
 
 import { Pass } from 'three/examples/jsm/postprocessing/Pass';
@@ -48,13 +50,14 @@ glassLayer.set(LAYERS.GLASS);
 iceLayer.set(LAYERS.ICE);
 waterLayer.set(LAYERS.WATER);
 
-const setGlassMaterial = (mesh, texture, cubeTexture) => {
+const setGlassMaterial = (mesh, texture, cubeTexture, waterTexture) => {
   const glassMaterial = new ShaderMaterial( {
     ...GlassShader,
     uniforms: {
       ...UniformsUtils.clone( GlassShader.uniforms ),
       envMap: {value: texture},
-      cubeMap: {value: cubeTexture}
+      cubeMap: {value: cubeTexture},
+      waterMap: {value: waterTexture}
     }
   });
 
@@ -74,18 +77,21 @@ const setIceMaterial = (mesh, texture, envTexture) => {
   patchMaterial(mesh, iceMaterial);
 }
 
-const setWaterMaterial = (mesh, baseMaterial, envTexture) => {
+const setWaterMaterial = (mesh, baseMaterial, envTexture, depthTexture) => {
   let box = new Box3();
   box.setFromObject(mesh);
 
   let bounds = new Vector2(box.min.y, box.max.y);
+
+  console.log(bounds)
 
   const waterMaterial = new ShaderMaterial( {
     ...WaterShader,
     uniforms: {
       ...UniformsUtils.clone( WaterShader.uniforms ),
       envMap: {value: envTexture},
-      heightBounds: {value: bounds}
+      heightBounds: {value: bounds},
+      depthMap: {value: depthTexture}
     },
     userData: {baseMaterial}
   });
@@ -93,7 +99,7 @@ const setWaterMaterial = (mesh, baseMaterial, envTexture) => {
   patchMaterial(mesh, waterMaterial);
 }
 
-const getBaseWaterMaterial = (envTexture) => {
+const getBaseWaterMaterial = () => {
 
   const waterMaterial = new MeshBasicMaterial( {
     color: 0x0088ff,
@@ -119,13 +125,19 @@ export class MainPass extends Pass {
     this.camera = camera;
 
     renderer.autoClear = false;
-    renderer.setClearAlpha(0);
+    renderer.setClearColor(0xffffff, 0.0);
 
     const pars = { minFilter: LinearFilter, magFilter: LinearFilter, format: RGBAFormat, wrapS: RepeatWrapping, wrapT: RepeatWrapping };
 
-    this.renderTargetReflectionBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
+    this.depthTexture = new DepthTexture(1024, 1024);
+
+    this.renderTargetReflectionBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter, depthTexture: this.depthTexture} );
     this.renderTargetReflectionBuffer.texture.name = "ReflectionsPass.depth";
     this.renderTargetReflectionBuffer.texture.generateMipmaps = true;
+
+    this.renderTargetWaterBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
+    this.renderTargetWaterBuffer.texture.name = "WaterPass.depth";
+    this.renderTargetWaterBuffer.texture.generateMipmaps = true;
 
     this.renderTargetIceBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
     this.renderTargetIceBuffer.texture.name = "IcePrePass.depth";
@@ -161,7 +173,12 @@ export class MainPass extends Pass {
 
     getObjectsByLayer(this.scene, glassLayer, (object) => {
       if (object.isMesh) {
-        setGlassMaterial(object, this.renderTargetReflectionBuffer.texture, environmentMap);
+        setGlassMaterial(
+          object,
+          this.renderTargetReflectionBuffer.texture,
+          environmentMap,
+          this.renderTargetWaterBuffer.texture
+        );
         this.glassObjects.push(object);
 
         //object.visible = false;
@@ -177,7 +194,7 @@ export class MainPass extends Pass {
 
     getObjectsByLayer(this.scene, waterLayer, (object) => {
       if (object.isMesh) {
-        setWaterMaterial(object, this.baseWaterMaterial, environmentMap);
+        setWaterMaterial(object, this.baseWaterMaterial, environmentMap, this.depthTexture);
         this.waterObjects.push(object);
 
         //object.material.onBeforeCompile = console.log;
@@ -233,55 +250,41 @@ export class MainPass extends Pass {
 
     
 
-    /** Render All the staff inside the glass */
+    /** Render All the staff inside the glass except of the water and glass */
     this.camera.layers.enableAll();
     this.camera.layers.disable(LAYERS.GLASS);
+    this.camera.layers.disable(LAYERS.WATER);
 
     renderer.setRenderTarget(this.renderTargetReflectionBuffer);
-    renderer.setClearAlpha(0)
     renderer.clear();
     renderer.render(this.scene, this.camera);
-
     /** Finish drawing inner glass staff */
+
+    /** Render water */
+    this.camera.layers.set(LAYERS.WATER);
+    renderer.setRenderTarget(this.renderTargetWaterBuffer);
+    renderer.clear();
+    renderer.render(this.scene, this.camera);
+    /** Finish drawing water */
+    
 
     this.scene.background = background;
     
     /** Render smooth result */
     renderer.setRenderTarget(this.renderTargetFXAABuffer);
     //renderer.setRenderTarget(null);
-
+   
     this.camera.layers.enableAll();
-
+    this.camera.layers.disable(LAYERS.WATER);
+    this.camera.layers.disable(LAYERS.ICE);
+    
     renderer.clear();
-
-    //this.scene.background = null;
-
-    
-
-    //this.scene.overrideMaterial = null;
-    this.camera.layers.enableAll();
-    
     renderer.render(this.scene, this.camera);
-
-    // this.camera.layers.disableAll();
-    // this.camera.layers.enable(LAYERS.WATER);
-
-    //this.scene.overrideMaterial = this.baseWaterMaterial;
-    // for (let waterObject of this.waterObjects) {
-    //   waterObject.userData.oldMaterial = waterObject.material;
-    //   waterObject.material = this.baseWaterMaterial;
-    // }
-
-    // renderer.render(this.scene, this.camera);
-
-    // for (let waterObject of this.waterObjects) {
-    //   waterObject.material = waterObject.userData.oldMaterial;
-    // }
-    
-    
-    //this.scene.background = background;
 
     renderer.setRenderTarget(null);
     this.FXAAQuad.render(renderer);
+
+    //this.scene.background = null;
+    //this.scene.overrideMaterial = null;
   }
 }

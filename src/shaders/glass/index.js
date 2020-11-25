@@ -10,6 +10,7 @@ import { Color } from 'three';
 const GlassShader = {
 	uniforms: UniformsUtils.merge([
     {
+      waterMap: {value: null},
       envMap: {value: null},
       normalMap: {value: null},
       cubeMap: {value: null},

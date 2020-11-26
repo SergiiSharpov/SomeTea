@@ -355,7 +355,7 @@ vec4 getPixel(in vec2 coord, float time) {
     float realFresnel = clamp(1.0 - dot(normal, -viewDirection), 0.0, 1.0);
     float fresnel = pow(realFresnel, 3.0) * 0.5;
 
-    float currentOpacity = opacity * (1.0 - mix(fresnel, realFresnel, depth));
+    float currentOpacity = opacity * (1.1 - mix(fresnel, realFresnel, depth));
 
     vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
     

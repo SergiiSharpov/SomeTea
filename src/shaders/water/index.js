@@ -1,4 +1,4 @@
-import {UniformsLib, UniformsUtils, DoubleSide, Vector2, FrontSide, LessDepth, NeverDepth, NotEqualDepth, GreaterDepth} from 'three';
+import {UniformsLib, UniformsUtils, DoubleSide, Vector2, FrontSide, LessDepth, NeverDepth, NotEqualDepth, GreaterDepth, Vector3} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
@@ -11,8 +11,12 @@ const WaterShader = {
 
       opacity: {value: 0.9},
 
+      speed: {value: 1.0},
+      depth: {value: 0.0},
+
       height: {value: 1.0},
       heightBounds: {value: new Vector2()},
+      center: {value: new Vector3()},
 
       uvScale: {value: 128},
       waterColor: {value: new Color(173, 165, 48).multiplyScalar(1.0 / 255.0)},

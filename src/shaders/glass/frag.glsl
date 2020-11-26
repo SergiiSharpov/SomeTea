@@ -14,6 +14,8 @@ uniform samplerCube cubeMap;
 
 
 uniform float roughness;
+uniform sampler2D roughnessMap;
+
 uniform float fresnelPower;
 uniform vec3 glassColor;
 uniform float reflectivity;
@@ -51,10 +53,11 @@ const float R0 = ((Air - Glass) * (Air - Glass)) / ((Air + Glass) * (Air + Glass
 const float RefractionScale = 32.0;
 
 void main() {
-	float roughnessInverse = (1.0 - roughness);
-	float alpha = 1.0 - absorption;
+	float rougnessMultiplyer = texture2D(roughnessMap, vUv).r;
+	float mipMapLevel = float( roughness * 8.0 * rougnessMultiplyer );
 
-	float mipMapLevel = float( roughness * 8.0 );
+	float roughnessInverse = 1.0 - (roughness * rougnessMultiplyer);
+	float alpha = 1.0 - absorption;
 
 	vec3 normal = normalize( vNormal );
 	normal = normal * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
@@ -73,7 +76,7 @@ void main() {
 
 	float face = float( gl_FrontFacing  ) * 2.0 - 1.0;
 
-	vec3 v_refraction = refract(viewDirection, targetNormal * face, Eta + EtaDelta * sin(roughness * 3.14 * 0.5));
+	vec3 v_refraction = refract(viewDirection, targetNormal * face, Eta + EtaDelta * sin(roughness * 3.14 * 0.5 * rougnessMultiplyer));
 	vec3 v_reflection = reflect(viewDirection, targetNormal * face);
 
 	vec4 refractColor0 = textureCube( cubeMap, v_refraction * vec3(-1.0, 1.0, 1.0), mipMapLevel);
@@ -91,12 +94,12 @@ void main() {
 
 	float innerWaterAlpha = texture2D(waterMap, vViewUv.xy, mipMapLevel).a;
 
-	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy, mipMapLevel);
-	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy, mipMapLevel);
+	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy);
+	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy);
 
 	vec4 innerRefColor = mix(innerRefColor0, innerRefColor1, innerWaterAlpha);
 	//vec4 innerRefColor = texture2D(envMap, vViewUv.xy, mipMapLevel);
-	//innerRefColor.a = clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0);
+	innerRefColor.a = clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0);
 
 	vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
 

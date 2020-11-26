@@ -14,7 +14,8 @@ import {
   Clock,
   BackSide,
 
-  DepthTexture
+  DepthTexture,
+  Vector3
 } from 'three';
 
 import { Pass } from 'three/examples/jsm/postprocessing/Pass';
@@ -28,6 +29,7 @@ import IcePrepassShader from '../shaders/icePrepass';
 import IceShader from '../shaders/ice';
 import WaterShader from '../shaders/water';
 import { MeshBasicMaterial } from 'three/build/three.module';
+import RemapShader from '../shaders/remap';
 
 
 export const LAYERS = {
@@ -79,11 +81,12 @@ const setIceMaterial = (mesh, texture, envTexture) => {
 
 const setWaterMaterial = (mesh, baseMaterial, envTexture, depthTexture) => {
   let box = new Box3();
+  let center = new Vector3();
+
   box.setFromObject(mesh);
+  box.getCenter(center);
 
   let bounds = new Vector2(box.min.y, box.max.y);
-
-  console.log(bounds)
 
   const waterMaterial = new ShaderMaterial( {
     ...WaterShader,
@@ -91,7 +94,8 @@ const setWaterMaterial = (mesh, baseMaterial, envTexture, depthTexture) => {
       ...UniformsUtils.clone( WaterShader.uniforms ),
       envMap: {value: envTexture},
       heightBounds: {value: bounds},
-      depthMap: {value: depthTexture}
+      depthMap: {value: depthTexture},
+      center: {value: center}
     },
     userData: {baseMaterial}
   });
@@ -143,8 +147,6 @@ export class MainPass extends Pass {
     this.renderTargetIceBuffer.texture.name = "IcePrePass.depth";
     this.renderTargetIceBuffer.texture.generateMipmaps = true;
 
-    console.log(this.renderTargetIceBuffer)
-
     this.renderTargetFXAABuffer = new WebGLMultisampleRenderTarget( 1024, 1024, pars );
     this.renderTargetFXAABuffer.texture.name = "FXAAPass.depth";
     this.renderTargetFXAABuffer.texture.generateMipmaps = false;
@@ -152,6 +154,11 @@ export class MainPass extends Pass {
     this.icePrepassMaterial = new ShaderMaterial( {
       ...IcePrepassShader,
       uniforms: UniformsUtils.clone( IcePrepassShader.uniforms )
+    });
+
+    this.waterRemapMaterial = new ShaderMaterial( {
+      ...RemapShader,
+      uniforms: {map: {value: this.renderTargetWaterBuffer.texture}}
     });
 
 
@@ -276,15 +283,24 @@ export class MainPass extends Pass {
    
     this.camera.layers.enableAll();
     this.camera.layers.disable(LAYERS.WATER);
-    this.camera.layers.disable(LAYERS.ICE);
+    //this.camera.layers.disable(LAYERS.ICE);
     
     renderer.clear();
     renderer.render(this.scene, this.camera);
+
+    this.scene.overrideMaterial = this.waterRemapMaterial;
+    this.scene.background = null;
+    this.camera.layers.set(LAYERS.WATER);
+
+    renderer.render(this.scene, this.camera);
+
+    this.scene.background = background;
+    this.scene.overrideMaterial = null;
 
     renderer.setRenderTarget(null);
     this.FXAAQuad.render(renderer);
 
     //this.scene.background = null;
-    //this.scene.overrideMaterial = null;
+    //
   }
 }

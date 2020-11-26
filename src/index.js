@@ -54,6 +54,9 @@ const GUI_STATE = {
 
     highWaterColor: [212, 139, 57],
     waterColor: [173, 165, 48],
+
+    speed: 1.0,
+    depth: 0.0
   },
   currentView: 'all'
 }
@@ -101,6 +104,22 @@ const createGui = (scene, renderer) => {
   })
 
   let waterFolder = gui.addFolder('Water');
+
+  waterFolder.add(GUI_STATE.water, 'speed', 0.0, 10.0, 0.01)
+  .name('Speed')
+  .onChange((v) => {
+    for (let water of waterObjects) {
+      water.material.uniforms.speed.value = v;
+    }
+  })
+
+  waterFolder.add(GUI_STATE.water, 'depth', 0.0, 1.0, 0.01)
+  .name('Depth')
+  .onChange((v) => {
+    for (let water of waterObjects) {
+      water.material.uniforms.depth.value = v;
+    }
+  })
 
   waterFolder.add(GUI_STATE.water, 'uvScale', -256, 256, 1)
   .name('Waves scale')

@@ -22,6 +22,10 @@ uniform vec3 highWaterColor;
 varying float wavePower;
 varying vec2 vUv;
 
+uniform float speed;
+uniform float depth;
+uniform vec3 center;
+
 varying mat4 vWPMatrix;
 
 vec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm, vec3 mapN ) {
@@ -60,7 +64,7 @@ const float SEA_SPEED = 0.8;
 const float SEA_FREQ = 0.16;
 const vec3 SEA_BASE = vec3(0.0,0.09,0.18);
 const vec3 SEA_WATER_COLOR = vec3(0.8,0.9,0.6)*0.6;
-#define SEA_TIME (1.0 + time * SEA_SPEED)
+#define SEA_TIME (1.0 + time * SEA_SPEED * speed)
 const mat2 octave_m = mat2(1.6,1.2,-1.2,1.6);
 
 // math
@@ -95,12 +99,6 @@ float diffuse(vec3 n,vec3 l,float p) {
 float specular(vec3 n,vec3 l,vec3 e,float s) {    
     float nrm = (s + 8.0) / (PI * 8.0);
     return pow(max(dot(reflect(e,n),l),0.0),s) * nrm;
-}
-
-// sky
-vec3 getSkyColor(vec3 e) {
-    e.y = (max(e.y,0.0)*0.8+0.2)*0.8;
-    return vec3(pow(1.0-e.y,2.0), 1.0-e.y, 0.6+(1.0-e.y)*0.4) * 1.1;
 }
 
 // sea
@@ -144,23 +142,6 @@ float map_detailed(vec3 p) {
         choppy = mix(choppy,1.0,0.2);
     }
     return h;
-}
-
-vec3 getSeaColor(vec3 p, vec3 n, vec3 l, vec3 eye, vec3 dist) {  
-    float fresnel = clamp(1.0 - dot(n,-eye), 0.0, 1.0);
-    fresnel = pow(fresnel,3.0) * 0.5;
-        
-    vec3 reflected = getSkyColor(reflect(eye,n));    
-    vec3 refracted = SEA_BASE + diffuse(n,l,80.0) * SEA_WATER_COLOR * 0.12; 
-    
-    vec3 color = mix(refracted,reflected,fresnel);
-    
-    float atten = max(1.0 - dot(dist,dist) * 0.001, 0.0);
-    color += SEA_WATER_COLOR * (p.y - SEA_HEIGHT) * 0.18 * atten;
-    
-    color += vec3(specular(n,l,eye,60.0));
-    
-    return color;
 }
 
 // tracing
@@ -354,6 +335,9 @@ vec4 getPixel(in vec2 coord, float time) {
 
     vec3 pos = cameraPosition + dist * viewDirection;
 
+    vec3 toCenter = normalize(center.xyz - cameraPosition.xyz);
+    vec3 toSurface = normalize(center.xyz - pos.xyz);
+
     vec4 mvpPosition = vWPMatrix * vec4(pos.xyz, 1.0);
     mvpPosition.xyz /= mvpPosition.w;
     mvpPosition.xyz = mvpPosition.xyz * 0.5 + 0.5;
@@ -368,8 +352,10 @@ vec4 getPixel(in vec2 coord, float time) {
 
     vec3 normal = sceneNormal(pos);
 
-    float fresnel = clamp(1.0 - dot(normal, -viewDirection), 0.0, 1.0);
-    fresnel = pow(fresnel, 3.0) * 0.5;
+    float realFresnel = clamp(1.0 - dot(normal, -viewDirection), 0.0, 1.0);
+    float fresnel = pow(realFresnel, 3.0) * 0.5;
+
+    float currentOpacity = opacity * (1.0 - mix(fresnel, realFresnel, depth));
 
     vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
     
@@ -385,7 +371,8 @@ vec4 getPixel(in vec2 coord, float time) {
 
     float waterOpacity = 1.0 - dot(-normalize(pos.xyz - cameraPosition.xyz), viewDirection);
     
-    return vec4(color, opacity);
+    // return vec4(color + fresnel, opacity);
+    return vec4(color + fresnel, currentOpacity);
 }
 
 // main

@@ -92,7 +92,7 @@ void main() {
 
 	float frontLight = pow(clamp(dot(dirLight, targetNormal), 0., 1.) * 0.8, 4.0);
 
-	float innerWaterAlpha = texture2D(waterMap, vViewUv.xy, mipMapLevel).a;
+	float innerWaterAlpha = texture2D(waterMap, vViewUv.xy).a;
 
 	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy);
 	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy);

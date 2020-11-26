@@ -260,7 +260,16 @@ const initApp = (scene) => {
 
   camera = new PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.01, 10000 );
 
-  renderer = new WebGLRenderer({ antialias: false, alpha: true });
+  const gl = document.createElement('canvas').getContext('webgl2');
+  if (!gl) {
+    console.log('your browser/OS/drivers do not support WebGL2');
+    renderer = new WebGLRenderer({ antialias: false, alpha: true });
+  } else {
+    console.log('webgl2 works!');
+    renderer = new WebGLRenderer({ antialias: false, alpha: true, context: gl });
+  }
+
+  
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
 

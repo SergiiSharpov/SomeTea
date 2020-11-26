@@ -135,11 +135,11 @@ export class MainPass extends Pass {
 
     this.depthTexture = new DepthTexture(1024, 1024);
 
-    this.renderTargetReflectionBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter, depthTexture: this.depthTexture} );
+    this.renderTargetReflectionBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter, depthTexture: this.depthTexture} );
     this.renderTargetReflectionBuffer.texture.name = "ReflectionsPass.depth";
     this.renderTargetReflectionBuffer.texture.generateMipmaps = true;
 
-    this.renderTargetWaterBuffer = new WebGLMultisampleRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
+    this.renderTargetWaterBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
     this.renderTargetWaterBuffer.texture.name = "WaterPass.depth";
     this.renderTargetWaterBuffer.texture.generateMipmaps = true;
 
@@ -147,7 +147,7 @@ export class MainPass extends Pass {
     this.renderTargetIceBuffer.texture.name = "IcePrePass.depth";
     this.renderTargetIceBuffer.texture.generateMipmaps = true;
 
-    this.renderTargetFXAABuffer = new WebGLMultisampleRenderTarget( 1024, 1024, pars );
+    this.renderTargetFXAABuffer = new WebGLRenderTarget( 1024, 1024, pars );
     this.renderTargetFXAABuffer.texture.name = "FXAAPass.depth";
     this.renderTargetFXAABuffer.texture.generateMipmaps = false;
 

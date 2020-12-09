@@ -1,10 +1,10 @@
-import {UniformsLib, UniformsUtils, DoubleSide, Vector2, FrontSide, LessDepth, NeverDepth, NotEqualDepth, GreaterDepth, Vector3, CustomBlending, SrcAlphaFactor, OneMinusSrcAlphaFactor, AddEquation, AlwaysDepth, Matrix4, BackSide, AdditiveBlending} from 'three';
+import {UniformsLib, UniformsUtils, DoubleSide, Vector2, FrontSide, LessDepth, NeverDepth, NotEqualDepth, GreaterDepth, Vector3, CustomBlending, SrcAlphaFactor, OneMinusSrcAlphaFactor, AddEquation, AlwaysDepth, Matrix4} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
 import { Color } from 'three';
 
-const WaterShader = {
+const CausticShader = {
 	uniforms: UniformsUtils.merge([
     {
       time: {value: 0.0},
@@ -26,10 +26,9 @@ const WaterShader = {
       envMap: {value: null},
       depthMap: {value: null},
       causticDepthMap: {value: null},
-      causticMap: {value: null},
 
-      cameraProjection: {value: new Matrix4()},
-      cameraView: {value: new Matrix4()}
+      cameraProjectionInverse: {value: new Matrix4()},
+      cameraViewInverse: {value: new Matrix4()}
     }
   ]),
 
@@ -45,12 +44,10 @@ const WaterShader = {
 
   // wireframe: true,
 
-  side: BackSide,
+  side: DoubleSide,
 
-  depthTest: true,
+  depthTest: false,
   depthWrite: true,
-
-  // blending: AdditiveBlending,
 
   // depthFunc: AlwaysDepth,
 
@@ -59,9 +56,9 @@ const WaterShader = {
   // blendSrc: SrcAlphaFactor,
   // blendDst: OneMinusSrcAlphaFactor,
 
-  polygonOffset: true,
-  polygonOffsetFactor: 0,
-  polygonOffsetUnits: -32
+  // polygonOffset: true,
+  // polygonOffsetFactor: 0,
+  // polygonOffsetUnits: -32
 };
 
-export default WaterShader;
+export default CausticShader;

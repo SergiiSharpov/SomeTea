@@ -12,9 +12,9 @@ const getComposer = () => {
   const getResizeFn = () => resize;
   const getRenderFn = () => render;
 
-  const init = (scene, camera, renderer, textureCube) => {
+  const init = (scene, camera, renderer, thicknessMap, textureCube, controls) => {
     const composer = new EffectComposer( renderer );
-    composer.addPass( new MainPass(scene, camera, renderer, textureCube) );
+    composer.addPass( new MainPass(scene, camera, renderer, thicknessMap, textureCube, controls) );
   
     resize = (width, height) => {
       const targetWidth = width || renderer.domElement.parentNode.offsetWidth;

@@ -5,7 +5,9 @@ export const patchMaterial = (object, material) => {
 
   object.material = material;
 
-  for (let key of MAPS_TO_COPY) {
-    object.material.uniforms[key] && (object.material.uniforms[key].value = oldMaterial[key]);
+  if (object.material.uniforms) {
+    for (let key of MAPS_TO_COPY) {
+      object.material.uniforms[key] && (object.material.uniforms[key].value = oldMaterial[key]);
+    }
   }
 }

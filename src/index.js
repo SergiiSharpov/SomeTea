@@ -6,7 +6,7 @@ import {
 
   ShaderChunk,
 
-  AmbientLight, DirectionalLight, Scene
+  AmbientLight, DirectionalLight, Scene, BufferGeometry, MeshBasicMaterial, Mesh, TextureLoader
 } from 'three';
 
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
@@ -16,10 +16,11 @@ import * as dat from 'dat.gui';
 
 import { fitCameraToObject } from './utils/fitCameraToObject';
 import { getComposer, LAYERS, LAYERS_OBJECTS } from './composer';
+import { settings } from './composer/mainPass';
 
 window.ShaderChunk = ShaderChunk;
 
-let camera, renderer, controls, textureCube, gui;
+let camera, renderer, controls, textureCube, thicknessMap, gui;
 const composer = getComposer();
 
 const hideLoader = () => {
@@ -37,7 +38,7 @@ const GUI_STATE = {
     color: [255, 255, 255],
     fresnelPower: 1.0,
     reflectivity: 0.75,
-    absorption: 0.25
+    absorption: 0.08
   },
   ice: {
     roughness: 0.0,
@@ -50,7 +51,7 @@ const GUI_STATE = {
     opacity: 0.9,
     height: 1.0,
 
-    uvScale: 128,
+    uvScale: 20,
 
     highWaterColor: [212, 139, 57],
     waterColor: [173, 165, 48],
@@ -113,38 +114,34 @@ const createGui = (scene, renderer) => {
     }
   })
 
-  waterFolder.add(GUI_STATE.water, 'depth', 0.0, 1.0, 0.01)
-  .name('Depth')
-  .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.depth.value = v;
-    }
-  })
+  // waterFolder.add(GUI_STATE.water, 'depth', 0.0, 1.0, 0.01)
+  // .name('Depth')
+  // .onChange((v) => {
+  //   for (let water of waterObjects) {
+  //     water.material.uniforms.depth.value = v;
+  //   }
+  // })
 
-  waterFolder.add(GUI_STATE.water, 'uvScale', -256, 256, 1)
+  waterFolder.add(GUI_STATE.water, 'uvScale', 0, 128.0, 0.01)
   .name('Waves scale')
   .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.uvScale.value = v;
-    }
+    settings.waterScale.value = v;
+    
   })
 
   waterFolder.addColor(GUI_STATE.water, 'waterColor')
   .name('Color')
   .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.waterColor.value.fromArray(v.map(i => i / 255));
-      water.material.userData.baseMaterial.color.fromArray(v.map(i => i / 255));
-    }
+    settings.waterColor.fromArray(v.map(i => i / 255));
   })
 
-  waterFolder.addColor(GUI_STATE.water, 'highWaterColor')
-  .name('Peaks color')
-  .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.highWaterColor.value.fromArray(v.map(i => i / 255));
-    }
-  })
+  // waterFolder.addColor(GUI_STATE.water, 'highWaterColor')
+  // .name('Peaks color')
+  // .onChange((v) => {
+  //   for (let water of waterObjects) {
+  //     water.material.uniforms.highWaterColor.value.fromArray(v.map(i => i / 255));
+  //   }
+  // })
 
   waterFolder.add(GUI_STATE.water, 'opacity', 0.0, 1.0, 0.01)
   .name('Water opacity')
@@ -154,13 +151,13 @@ const createGui = (scene, renderer) => {
     }
   })
 
-  waterFolder.add(GUI_STATE.water, 'height', 0.01, 1.0, 0.01)
-  .name('Water height')
-  .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.height.value = v;
-    }
-  })
+  // waterFolder.add(GUI_STATE.water, 'height', 0.01, 1.0, 0.01)
+  // .name('Water height')
+  // .onChange((v) => {
+  //   for (let water of waterObjects) {
+  //     water.material.uniforms.height.value = v;
+  //   }
+  // })
 
   let glassFolder = gui.addFolder('Glass');
 
@@ -267,7 +264,7 @@ const initApp = (scene) => {
     renderer = new WebGLRenderer({ antialias: false, alpha: true });
   } else {
     console.log('webgl2 works!');
-    renderer = new WebGLRenderer({ antialias: false, alpha: true, context: gl, canvas });
+    renderer = new WebGLRenderer({ antialias: false, alpha: true, context: gl, canvas, premultipliedAlpha: false });
   }
 
   
@@ -281,7 +278,7 @@ const initApp = (scene) => {
   // setObjectLayerByName(scene, /liquid/i, LAYERS.WATER);
   // setObjectLayerByMaterialName(scene, /ice/i, LAYERS.ICE);
 
-  composer.init(scene, camera, renderer, textureCube);
+  composer.init(scene, camera, renderer, thicknessMap, textureCube, controls);
   createGui(scene, renderer);
 
 
@@ -302,6 +299,15 @@ const loadEnvironment = () => {
   })
 }
 
+const loadThickness = () => {
+  return new Promise((resolve, reject) => {
+    const loader = new TextureLoader();
+    loader.setPath( '/assets/img/' );
+
+    thicknessMap = loader.load('Glass_Thickness.png', resolve, () => {}, reject);
+  })
+}
+
 const loadModel = (path) => {
   return new Promise((resolve, reject) => {
     const loader = new GLTFLoader();
@@ -316,7 +322,7 @@ const loadModel = (path) => {
 }
 
 const loadScene = async () => {
-  let Glass = await loadModel('/assets/models/Fuze_Glass_01.glb');
+  let Glass = await loadModel('/assets/models/Fuze_Glass_01_M.glb');
   let Ice = await loadModel('/assets/models/Fuze_Ice_01.glb');
   let Liquid = await loadModel('/assets/models/Fuze_Liquid_01.glb');
   let Lemon = await loadModel('/assets/models/Lemon_Fuze_01.glb');
@@ -324,13 +330,24 @@ const loadScene = async () => {
   let Stirrer = await loadModel('/assets/models/Stirrer_Fuze_01.glb');
 
 
-
   const scene = new Scene();
 
   [
-    ...Glass.scene.children.map(obj => {
+    ...Glass.scene.children.map((obj, i) => {
       if (obj.isMesh) {
-        obj.layers.set(LAYERS.GLASS)
+        obj.layers.set(LAYERS.GLASS);
+
+        if (obj.material.normalMap) {
+          console.log(obj.material.normalMap)
+        }
+
+        // console.log('Glass', obj, i)
+
+        if (i !== 3) {
+          // obj.visible = false;
+
+          //obj.layers.set(LAYERS.GLASS);
+        }
       }
 
       return obj;
@@ -347,7 +364,7 @@ const loadScene = async () => {
         obj.material.transparent = true;
         obj.material.opacity = 0.68;
 
-        obj.layers.set(LAYERS.WATER)
+        obj.layers.set(LAYERS.WATER_AREA)
       }
 
       return obj;
@@ -369,10 +386,26 @@ const loadScene = async () => {
 
 
 const SCENE_PATH = '/assets/scenes/scene.json';
-loadEnvironment().then(() => {
+Promise.all([loadEnvironment(), loadThickness()])
+.then(() => {
   // fetch(SCENE_PATH)
   // .then(res => res.json())
-  // .then(loadScene);
+  // .then((json) => {
+  //   const loader = new ObjectLoader();
+
+  //   let scene = loader.parse(json);
+
+  //   scene.traverse(obj => {
+  //     if (obj.isMesh) {
+  //       console.log(obj.name)
+  //       if (obj.name === 'FuzeGlass_Low001') {
+  //         obj.layers.set(LAYERS.GLASS)
+  //       }
+  //     }
+  //   })
+
+  //   initApp(scene);
+  // });
 
   loadScene().then(initApp)
 })

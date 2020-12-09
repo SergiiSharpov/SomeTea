@@ -1,8 +1,7 @@
-import {UniformsUtils, DoubleSide} from 'three';
+import {UniformsUtils, DoubleSide, BackSide, Color, DataTexture, RGBFormat, FrontSide, LessDepth, GreaterDepth, EqualDepth, NotEqualDepth, AlwaysDepth, NeverDepth, CustomBlending, SrcAlphaFactor, OneMinusSrcAlphaFactor, AddEquation, SrcColorFactor, GreaterEqualDepth, Vector2} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
-import { Color, DataTexture, RGBFormat } from 'three';
 
 const getWhiteTexture = () => {
   const width = 2;
@@ -41,12 +40,23 @@ const GlassShader = {
       envMap: {value: null},
       normalMap: {value: null},
       cubeMap: {value: null},
+      thicknessMap: {value: null},
+      
       roughness: {value: 0.0},
       roughnessMap: {value: getWhiteTexture()},
       reflectivity: {value: 0.96},
       glassColor: {value: new Color(1.0, 1.0, 1.0)},
       fresnelPower: {value: 1.0},
-      absorption: {value: 0.25}
+      absorption: {value: 0.08},
+
+      waterColor: {value: new Color(173, 165, 48).multiplyScalar(1.0 / 255.0)},
+      highWaterColor: {value: new Color(212, 139, 57).multiplyScalar(1.0 / 255.0)},
+
+      time: {value: 0.0},
+      speed: {value: 1.0},
+      uvScale: {value: 16.0},
+      height: {value: 1.0},
+      heightBounds: {value: new Vector2()},
     }
   ]),
 
@@ -54,8 +64,27 @@ const GlassShader = {
   fragmentShader,
   
   transparent: true,
+  // alphaTest: 0.9999,
 
-  side: DoubleSide
+  // side: BackSide,
+
+  depthTest: true,
+  depthWrite: true,
+
+  // wireframe: true,
+
+  // blending: CustomBlending,
+  // blendEquation: AddEquation,
+  // blendSrc: SrcAlphaFactor,
+  // blendDst: OneMinusSrcAlphaFactor,
+
+  polygonOffset: true,
+  polygonOffsetFactor: 0,
+  polygonOffsetUnits: -2,
+
+  // depthFunc: LessDepth
+
+  // stencilWrite: true
 };
 
 export default GlassShader;

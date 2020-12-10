@@ -17,6 +17,7 @@ import * as dat from 'dat.gui';
 import { fitCameraToObject } from './utils/fitCameraToObject';
 import { getComposer, LAYERS, LAYERS_OBJECTS } from './composer';
 import { settings } from './composer/mainPass';
+import { EquirectangularReflectionMapping, EquirectangularRefractionMapping } from 'three/build/three.module';
 
 window.ShaderChunk = ShaderChunk;
 
@@ -296,6 +297,8 @@ const loadEnvironment = () => {
     loader.setPath( '/assets/img/' );
 
     textureCube = loader.load([ 'posx.jpg', 'negx.jpg', 'posy.jpg', 'negy.jpg', 'posz.jpg', 'negz.jpg' ], resolve, () => {}, reject);
+
+    // textureCube.mapping = EquirectangularRefractionMapping;
   })
 }
 

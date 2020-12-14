@@ -148,7 +148,7 @@ void main() {
   vViewUv.xyz /= vViewUv.w;
   vViewUv.xy = (vViewUv.xy + 1.0) * 0.5;
 
-  vCausticViewUv = cameraProjection * cameraView * modelMatrix * vec4( position, 1.0 );
+  vCausticViewUv = cameraProjection * cameraView * modelMatrix * vec4( transformed, 1.0 );
   vCausticViewUv.xyz /= vCausticViewUv.w;
   vCausticViewUv.xy = (vCausticViewUv.xy + 1.0) * 0.5;
   

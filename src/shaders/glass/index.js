@@ -1,4 +1,4 @@
-import {UniformsUtils, DoubleSide, BackSide, Color, DataTexture, RGBFormat, FrontSide, LessDepth, GreaterDepth, EqualDepth, NotEqualDepth, AlwaysDepth, NeverDepth, CustomBlending, SrcAlphaFactor, OneMinusSrcAlphaFactor, AddEquation, SrcColorFactor, GreaterEqualDepth, Vector2} from 'three';
+import {UniformsUtils, DoubleSide, BackSide, Color, DataTexture, RGBFormat, FrontSide, LessDepth, GreaterDepth, EqualDepth, NotEqualDepth, AlwaysDepth, NeverDepth, CustomBlending, SrcAlphaFactor, OneMinusSrcAlphaFactor, AddEquation, SrcColorFactor, GreaterEqualDepth, Vector2, Matrix4} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
@@ -41,6 +41,11 @@ const GlassShader = {
       normalMap: {value: null},
       cubeMap: {value: null},
       thicknessMap: {value: null},
+
+      waterDepthMap: {value: null},
+      innerDepthMap: {value: null},
+
+      causticMap: {value: null},
       
       roughness: {value: 0.0},
       roughnessMap: {value: getWhiteTexture()},
@@ -57,6 +62,12 @@ const GlassShader = {
       uvScale: {value: 16.0},
       height: {value: 1.0},
       heightBounds: {value: new Vector2()},
+
+      cameraProjectionInverse: {value: new Matrix4()},
+      cameraViewInverse: {value: new Matrix4()},
+
+      cameraProjection: {value: new Matrix4()},
+      cameraView: {value: new Matrix4()},
     }
   ]),
 

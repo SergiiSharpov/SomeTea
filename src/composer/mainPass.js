@@ -41,6 +41,7 @@ import { fitCameraToObject } from '../utils/fitCameraToObject';
 import WaterDepthShader from '../shaders/waterDepth';
 import CausticShader from '../shaders/caustic';
 import WaterPlaneShader from '../shaders/waterPlane';
+import BubbleShader from '../shaders/bubble';
 
 
 export const LAYERS = {
@@ -48,7 +49,8 @@ export const LAYERS = {
   ICE: 3,
   WATER: 4,
   WATER_AREA: 5,
-  CAUSTIC: 6
+  CAUSTIC: 6,
+  BUBBLES: 7
 }
 
 const glassLayer = new Layers();
@@ -70,13 +72,17 @@ export const settings = {
   waterScale: {value: 20.0}
 }
 
+const _shaderSettings = {
+  waterDepthWrite: false
+}
+
 glassLayer.set(LAYERS.GLASS);
 iceLayer.set(LAYERS.ICE);
 waterLayer.set(LAYERS.WATER);
 waterAreaLayer.set(LAYERS.WATER_AREA);
 causticLayer.set(LAYERS.CAUSTIC);
 
-const setGlassMaterial = (mesh, waterObject, texture, cubeTexture, waterTexture, thicknessMap) => {
+const setGlassMaterial = (mesh, camera, orthoCamera, waterObject, texture, cubeTexture, waterTexture, thicknessMap, waterDepth, innerDepth, causticTexture) => {
   let box = new Box3();
   let center = new Vector3();
 
@@ -95,7 +101,17 @@ const setGlassMaterial = (mesh, waterObject, texture, cubeTexture, waterTexture,
       thicknessMap: {value: thicknessMap},
       heightBounds: {value: bounds},
       waterColor: {value: settings.waterColor},
-      uvScale: settings.waterScale
+      uvScale: settings.waterScale,
+
+      waterDepthMap: {value: waterDepth},
+      innerDepthMap: {value: innerDepth},
+      causticMap: {value: causticTexture},
+
+      cameraProjectionInverse: {value: camera.projectionMatrixInverse},
+      cameraViewInverse: {value: camera.matrixWorld},
+
+      cameraProjection: {value: orthoCamera.projectionMatrix},
+      cameraView: {value: orthoCamera.matrixWorldInverse},
     },
 
     side: (mesh.name.indexOf('inner') !== -1) ? FrontSide : FrontSide
@@ -272,6 +288,10 @@ const getBaseWaterMaterial = () => {
   return waterMaterial;
 }
 
+const clampedRandom = (min, max) => min + Math.random() * (max - min);
+const clamp = (min, max, x) => Math.min(max, Math.max(min, x));
+const sinLerp = (a, b, t) => a + Math.sin(clamp(0.0, 1.0, t) * Math.PI * 0.5) * (b - a);
+
 export class MainPass extends Pass {
   constructor(scene, camera, renderer, thicknessMap, environmentMap, controls) {
     super();
@@ -290,12 +310,13 @@ export class MainPass extends Pass {
     const pars = { minFilter: LinearFilter, magFilter: LinearFilter, format: RGBAFormat, wrapS: RepeatWrapping, wrapT: RepeatWrapping };
 
     this.depthTexture = new DepthTexture(1024, 1024);
+    this.waterDepthTexture = new DepthTexture(1024, 1024);
 
     this.renderTargetReflectionBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter, depthTexture: this.depthTexture} );
     this.renderTargetReflectionBuffer.texture.name = "ReflectionsPass.depth";
     this.renderTargetReflectionBuffer.texture.generateMipmaps = true;
 
-    this.renderTargetWaterBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
+    this.renderTargetWaterBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter, depthTexture: this.waterDepthTexture} );
     this.renderTargetWaterBuffer.texture.name = "WaterPass.depth";
     this.renderTargetWaterBuffer.texture.generateMipmaps = true;
 
@@ -311,6 +332,10 @@ export class MainPass extends Pass {
     this.renderTargetInnerTextureBuffer.texture.name = "InnerColorPass.depth";
     this.renderTargetInnerTextureBuffer.texture.generateMipmaps = false;
 
+    this.renderTargetBubblesBuffer = new WebGLRenderTarget( 1024, 1024, {...pars} );
+    this.renderTargetBubblesBuffer.texture.name = "BubblesColorPass.depth";
+    this.renderTargetBubblesBuffer.texture.generateMipmaps = false;
+
 
     this.renderTargetCausticDepthBuffer = new WebGLRenderTarget( 1024, 1024, {type: FloatType} );
     this.renderTargetCausticDepthBuffer.texture.name = "CausticDepthPass.depth";
@@ -320,7 +345,7 @@ export class MainPass extends Pass {
     this.renderTargetCausticTextureBuffer.texture.name = "CausticColorPass.depth";
     this.renderTargetCausticTextureBuffer.texture.generateMipmaps = false;
 
-    this.causticMaterial0 = new MeshBasicMaterial({map: this.renderTargetInnerTextureBuffer.texture});
+    this.causticMaterial0 = new MeshBasicMaterial({map: this.renderTargetReflectionBuffer.texture});
     this.causticQuad = new Pass.FullScreenQuad(this.causticMaterial0);
 
 
@@ -351,6 +376,11 @@ export class MainPass extends Pass {
       ...WaterDepthShader,
     });
 
+    this.bubbles = [];
+    this.bubblesCount = 16;
+    this.bubblesMinSize = 0.0015;
+    this.bubblesMaxSize = 0.002;
+
 
     this.glassObjects = [];
     this.iceObjects = [];
@@ -377,11 +407,6 @@ export class MainPass extends Pass {
         setWaterMaterial(object, this.orthoCamera, this.baseWaterMaterial, environmentMap, this.depthTexture, this.renderTargetCausticDepthBuffer.texture, this.renderTargetCausticTextureBuffer.texture);
         
         this.waterObjects.push(object);
-        //this.waterPlane.layers.set(LAYERS.WATER);
-
-        //object.material.onBeforeCompile = console.log;
-
-        //object.visible = false;
       }
     })
 
@@ -389,16 +414,18 @@ export class MainPass extends Pass {
       if (object.isMesh) {
         setGlassMaterial(
           object,
+          this.camera,
+          this.orthoCamera,
           this.waterObjects[0],
           this.renderTargetReflectionBuffer.texture,
           environmentMap,
           this.renderTargetWaterBuffer.texture,
           thicknessMap,
-          
+          this.waterDepthTexture,
+          this.depthTexture,
+          this.renderTargetCausticTextureBuffer.texture
         );
         this.glassObjects.push(object);
-
-        //object.visible = false;
       }
     })
 
@@ -415,6 +442,40 @@ export class MainPass extends Pass {
     // controls.update();
 
     //fitCameraToObject(this.camera, this.waterPlane, 0.0, controls);
+
+    this.box = new Box3();
+    this.box.setFromObject(this.waterObjects[1]);
+
+    for(let i = 0; i < this.bubblesCount; i++) {
+      let geom = new PlaneBufferGeometry(1.0, 1.0, 1.0, 1.0);
+      let mat = new ShaderMaterial( {
+        ...BubbleShader,
+        uniforms: UniformsUtils.clone( BubbleShader.uniforms )
+      });
+      let mesh = new Mesh(geom, mat);
+      mesh.layers.set(LAYERS.BUBBLES);
+      // mesh.renderOrder = 8;
+      
+      let bubble = {
+        mesh,
+        index: i,
+
+        startPos: new Vector3(clampedRandom(this.box.min.x * 0.75, this.box.max.x * 0.75), this.box.min.y, clampedRandom(this.box.min.z * 0.75, this.box.max.z * 0.75)),
+        endPos: new Vector3(clampedRandom(this.box.min.x * 0.75, this.box.max.x * 0.75), this.box.min.y + (this.box.max.y - this.box.min.y) * 0.85, clampedRandom(this.box.min.z * 0.75, this.box.max.z * 0.75)),
+        scale: clampedRandom(this.bubblesMinSize, this.bubblesMaxSize),
+        life: clampedRandom(2000, 4000),
+        fade: clampedRandom(300, 800),
+        current: 0
+      }
+
+      bubble.mesh.position.copy(bubble.startPos);
+      bubble.mesh.scale.setScalar(bubble.scale);
+
+      scene.add(bubble.mesh);
+
+      this.bubbles.push(bubble);
+    }
+
     scene.traverse(obj => {
       if (obj.frustumCulled) {
         obj.frustumCulled = false;
@@ -423,6 +484,40 @@ export class MainPass extends Pass {
 
     renderer.compile(scene, camera);
     renderer.compile(scene, this.orthoCamera);
+  }
+
+  resetBubble(i) {
+    this.bubbles[i] = {
+      mesh: this.bubbles[i].mesh,
+      index: i,
+
+      startPos: new Vector3(clampedRandom(this.box.min.x * 0.75, this.box.max.x * 0.75), this.box.min.y, clampedRandom(this.box.min.z * 0.75, this.box.max.z * 0.75)),
+      endPos: new Vector3(clampedRandom(this.box.min.x * 0.75, this.box.max.x * 0.75), this.box.min.y + (this.box.max.y - this.box.min.y) * 0.85, clampedRandom(this.box.min.z * 0.75, this.box.max.z * 0.75)),
+      scale: clampedRandom(this.bubblesMinSize, this.bubblesMaxSize),
+      life: clampedRandom(2000, 4000),
+      fade: clampedRandom(300, 800),
+      current: 0
+    }
+  }
+
+  animateBubbles(dt) {
+    // console.log(dt * 60.0)
+    for(let bubble of this.bubbles) {
+      bubble.mesh.position.lerpVectors(bubble.startPos, bubble.endPos, bubble.current / bubble.life);
+      bubble.mesh.rotation.setFromRotationMatrix(this.camera.matrixWorld);
+
+      if (bubble.current <= bubble.fade) {
+        bubble.mesh.material.uniforms.opacity.value = sinLerp(0.0, 1.0, bubble.current / bubble.fade);
+      } else if (bubble.current >= bubble.life - bubble.fade) {
+        bubble.mesh.material.uniforms.opacity.value = sinLerp(0.0, 1.0, (bubble.life - bubble.current) / bubble.fade);
+      }
+      
+
+      bubble.current += dt * 1000.0;
+      if (bubble.current >= bubble.life) {
+        this.resetBubble(bubble.index);
+      }
+    }
   }
 
   setSize(w, h) {
@@ -436,6 +531,8 @@ export class MainPass extends Pass {
     this.renderTargetCausticDepthBuffer.setSize(w, h);
     this.renderTargetCausticTextureBuffer.setSize(w, h);
 
+    this.renderTargetBubblesBuffer.setSize(w, h);
+
     this.FXAAMaterial.uniforms.resolution.value.set(1 / w, 1 / h);
 
     for (let object of this.iceObjects) {
@@ -447,8 +544,9 @@ export class MainPass extends Pass {
     }
   }
 
-  render(renderer, writeBuffer, readBuffer /*, deltaTime, maskActive*/) {
+  render(renderer, writeBuffer, readBuffer , deltaTime, maskActive) {
     this.clock.getDelta();
+    this.animateBubbles(deltaTime);
 
     for (let waterObject of this.waterObjects) {
       waterObject.material.uniforms.time.value = this.clock.elapsedTime;
@@ -565,7 +663,7 @@ export class MainPass extends Pass {
     this.camera.layers.disable(LAYERS.WATER);
     this.camera.layers.disable(LAYERS.WATER_AREA);
 
-    
+
     renderer.clear();
     renderer.render(this.scene, this.camera);
     /** Finish drawing inner glass staff */
@@ -576,10 +674,15 @@ export class MainPass extends Pass {
     this.camera.layers.disableAll();
     this.camera.layers.enable(LAYERS.WATER_AREA);
     this.camera.layers.enable(LAYERS.WATER);
+    // this.camera.layers.enable(LAYERS.BUBBLES);
     
+    this.waterPlane.material.depthWrite = true;
+
     renderer.setClearColor(0x000000, 0.0);
     renderer.clear();
     renderer.render(this.scene, this.camera);
+
+    this.waterPlane.material.depthWrite = false;
     /** Finish drawing water */
     
     this.scene.background = background;
@@ -587,7 +690,9 @@ export class MainPass extends Pass {
     /** Render smooth result */
     renderer.setRenderTarget(this.renderTargetFXAABuffer);
     
+    // this.camera.layers.set(LAYERS.GLASS);
     this.camera.layers.enableAll();
+    this.camera.layers.disable(LAYERS.BUBBLES);
     //this.camera.layers.disable(LAYERS.WATER_AREA);
     // this.camera.layers.disable(LAYERS.WATER);
     renderer.clear();

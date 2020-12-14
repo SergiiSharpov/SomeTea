@@ -72,9 +72,9 @@ const float causticScale = 0.1;
 void main() {
 
 	float alpha = texture2D(causticDepthMap, vUv.xy).a;
-	// if (alpha == 0.) {
-	// 	discard;
-	// }
+	if (alpha == 0.) {
+		discard;
+	}
   
   float caustic = texture2D(causticMap, vViewUv.xy).r;
 	vec3 innerColor = texture2D(innerMap, vCausticViewUv.xy).rgb;

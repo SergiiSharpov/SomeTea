@@ -13,6 +13,10 @@ uniform sampler2D thicknessMap;
 uniform sampler2D normalMap;
 uniform samplerCube cubeMap;
 
+uniform sampler2D waterDepthMap;
+uniform sampler2D innerDepthMap;
+
+uniform sampler2D causticMap;
 
 uniform float roughness;
 uniform sampler2D roughnessMap;
@@ -30,6 +34,12 @@ uniform float uvScale;
 
 uniform float height;
 uniform vec2 heightBounds;
+
+uniform mat4 cameraProjectionInverse;
+uniform mat4 cameraViewInverse;
+
+uniform mat4 cameraProjection;
+uniform mat4 cameraView;
 
 
 varying vec2 vUv;
@@ -135,14 +145,47 @@ float map(vec3 p) {
 }
 
 
+/** Simple 3d noise */
+
+float mod289(float x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+vec4 mod289(vec4 x){return x - floor(x * (1.0 / 289.0)) * 289.0;}
+vec4 perm(vec4 x){return mod289(((x * 34.0) + 1.0) * x);}
+
+float noise(vec3 p){
+    vec3 a = floor(p);
+    vec3 d = p - a;
+    d = d * d * (3.0 - 2.0 * d);
+
+    vec4 b = a.xxyy + vec4(0.0, 1.0, 0.0, 1.0);
+    vec4 k1 = perm(b.xyxy);
+    vec4 k2 = perm(k1.xyxy + b.zzww);
+
+    vec4 c = k2 + a.zzzz;
+    vec4 k3 = perm(c);
+    vec4 k4 = perm(c + 1.0);
+
+    vec4 o1 = fract(k3 * (1.0 / 41.0));
+    vec4 o2 = fract(k4 * (1.0 / 41.0));
+
+    vec4 o3 = o2 * d.z + o1 * (1.0 - d.z);
+    vec2 o4 = o3.yw * d.x + o3.xz * (1.0 - d.x);
+
+    return o4.y * d.y + o4.x * (1.0 - d.y);
+}
 
 
+/**
+ * Draw a circle at vec2 `pos` with radius `rad` and
+ * color `color`.
+ */
+float circle(vec2 uv, vec2 pos, float rad) {
+	float d = length(pos - uv) - rad;
+	float t = clamp(d, 0.0, 1.0);
+	return 1.0 - t;
+}
 
 
 void main() {
-	float h = map(vPosition.xyz * uvScale);
-  float waveY = mix(heightBounds.x, heightBounds.y, height) - h * 0.005;
-
 	float thickness = texture2D(thicknessMap, vec2(vUv.x, 1.0 - vUv.y)).r;
 
 	float rougnessMultiplyer = texture2D(roughnessMap, vUv).r;
@@ -155,7 +198,7 @@ void main() {
 	//normal = normal * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
 	
 	vec3 mapN = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;
-	normal = perturbNormal2Arb( -vViewPosition, normal, mapN );
+	normal = perturbNormal2Arb( -vViewPosition, normal, normalize(mapN) );
 
 
 	vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
@@ -189,14 +232,50 @@ void main() {
 
 	float innerWaterAlpha = texture2D(waterMap, vViewUv.xy).a;
 
-	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy);
-	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy);
+	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy, mipMapLevel);
+	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy, mipMapLevel);
+
+  /** Inner color calculation */
+	float waterDepth = texture2D(waterDepthMap, vViewUv.xy).r;
+	float innerDepth = texture2D(innerDepthMap, vViewUv.xy).r;
+
+	vec4 realCoord = cameraProjectionInverse * vec4(vec3(vViewUv.x, vViewUv.y, innerDepth) * 2.0 - 1.0, 1.0);
+	realCoord = cameraViewInverse * (realCoord / realCoord.w);
+
+	
+  float waveY = mix(heightBounds.x, heightBounds.y, height);
+	float h = map(vec3(realCoord.x, waveY, realCoord.z) * uvScale);
+
+	waveY -= h * 0.005;
+
+	vec4 waterColorMult = vec4(1.0);
+	float isUnderwater = 0.0;
+	if (realCoord.y <= waveY) {
+		waterColorMult = vec4(waterColor, 1.0);
+		isUnderwater = 1.0;
+	}
+
+		/** Caustic color */
+
+		vec4 screenPosition = cameraProjection * cameraView * vec4(realCoord.xyz, 1.0);
+		screenPosition = screenPosition * 0.5 + 0.5;
+		float caustic = texture2D(causticMap, screenPosition.xy).r;
+
+		/** Caustic color end*/
+
+	vec4 innerCol = mix(innerRefColor0 * waterColorMult + caustic * isUnderwater * 0.5, innerRefColor1, step(waterDepth, innerDepth));
+
+	/** Inner color calculation end */
 
 	vec4 innerRefColor = mix(innerRefColor0, innerRefColor1, innerWaterAlpha);
 	//vec4 innerRefColor = texture2D(envMap, vViewUv.xy, mipMapLevel);
 	innerRefColor.a = clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0);
 
 	vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
+	
+	vec4 refColorResult = mix(innerCol, refColor, (1.0 - innerCol.a));
+	refColorResult = mix(refColorResult, refColor, v_fresnel);
+	refColorResult = mix(refColor, refColorResult, roughnessInverse);
 
 	vec4 totalRefColor = mix(refColor, innerRefColor1, clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0));// innerRefColor.a
 	
@@ -214,27 +293,8 @@ void main() {
 	vec3 col = baseColor.rgb + mix(refColor.rgb, innerRefColor1.rgb, innerRefColor1.a) + fresnelResult;
 
 
-	float isInner = innerRefColor0.a * innerRefColor1.a;
-	if (vPosition.y > waveY) {
-    isInner = 0.0;
-  }
-	vec3 innerPart = mix(innerRefColor1.rgb, innerRefColor0.rgb, isInner) * waterColor;
-	innerPart = mix(innerRefColor0.rgb, innerPart, isInner);
-	//innerPart = mix(col, innerPart, isInner);
-
-	vec3 outputColor = baseColor.rgb + refColor.rgb + fresnelResult;//innerPart;//vec3(innerRefColor1.a);
-
-	//gl_FragColor = vec4(vec3(refractColor0.rgb), roughness * rougnessMultiplyer + 1.0);
-	//gl_FragColor = vec4(vec3(texture2D(envMap, vViewUv.xy).rgb), resultAlpha);
-
-	// gl_FragColor = vec4(col, v_fresnel + roughness * rougnessMultiplyer + thickness);
-	// gl_FragColor = vec4(col, v_fresnel + roughness * rougnessMultiplyer + thickness);
-	//gl_FragColor = vec4(col, v_fresnel + roughness * rougnessMultiplyer + thickness);
-	//gl_FragColor = vec4(mix(col, innerPart, isInner), v_fresnel + roughness * rougnessMultiplyer + thickness + isInner);
-	gl_FragColor = vec4(outputColor, v_fresnel + roughness * rougnessMultiplyer + thickness);
-	//gl_FragColor = vec4(vec3(innerRefColor0.a * innerRefColor1.a), 1.0);
-
-	//gl_FragColor = vec4(vec3(baseColor + totalRefColor + fresnelResult + frontLight), v_fresnel + roughness * rougnessMultiplyer + innerRefColor1.a + thickness);//vec4(resultColor.rgb, 1.0);
-	//gl_FragColor = vec4(vec3( baseColor + fresnelResult + frontLight), v_fresnel + roughness * rougnessMultiplyer);//vec4(resultColor.rgb, 1.0);
-	// gl_FragColor = vec4(vec3(baseColor.rgb), v_fresnel);
+	
+	vec3 outputColor = baseColor.rgb + refColorResult.rgb + fresnelResult;
+	
+	gl_FragColor = vec4(outputColor.rgb, 1.0);
 }

@@ -180,7 +180,10 @@ void main() {
 
   vec4 environment = texture2D(causticDepthMap, currentPosition);
   environment = environment * 2.0 - 1.0;
-  vec3 pos = vec3(cameraViewInverse * cameraProjectionInverse * environment).xyz;
+
+  vec4 tmpPos = cameraProjectionInverse * environment;
+  tmpPos /= tmpPos.w;
+  vec3 pos = vec3(cameraViewInverse * tmpPos).xyz;
 
   vec3 refractedDirection = refract(vec3(0.0, -1.0, 0.0), n, eta);//vec3(0.808049, 0.685002, 0.42915)
 
@@ -202,7 +205,10 @@ void main() {
 
     environment = texture2D(causticDepthMap, currentPosition);
     environment = environment * 2.0 - 1.0;
-    pos = vec3(cameraViewInverse * cameraProjectionInverse * environment).xyz;
+
+    tmpPos = cameraProjectionInverse * environment;
+    tmpPos /= tmpPos.w;
+    pos = vec3(cameraViewInverse * tmpPos).xyz;
   }
 
   resColor = environment.xyz * 0.5 + 0.5;

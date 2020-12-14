@@ -174,8 +174,8 @@ void main() {
 	vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
 	float frontLight = clamp(dot(dirLight, targetNormal), 0., 1.);
 
-	vec3 envColor = iceColor * (1.0 - reflectivity) + refractColor0.rgb + v_fresnel_ratio * fresnelPower + caustic * 0.5;
+	vec3 envColor = iceColor * (1.0 - reflectivity) + refractColor0.rgb + v_fresnel_ratio * fresnelPower;//  + caustic * 0.5
 
-	gl_FragColor = vec4(envColor * resultWaterColor, 1.0);
+	gl_FragColor = vec4(envColor, 1.0); // * resultWaterColor
 	
 }

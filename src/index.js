@@ -269,7 +269,7 @@ const initApp = (scene) => {
   }
 
   
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setPixelRatio(Math.floor(window.devicePixelRatio));// 
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   controls = new OrbitControls(camera, renderer.domElement);

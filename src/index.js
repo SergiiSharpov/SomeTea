@@ -105,23 +105,29 @@ const createGui = (scene, renderer) => {
     }
   })
 
-  let waterFolder = gui.addFolder('Water');
-
-  waterFolder.add(GUI_STATE.water, 'speed', 0.0, 10.0, 0.01)
+  gui.add(GUI_STATE.water, 'speed', 0.0, 10.0, 0.01)
   .name('Speed')
   .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.speed.value = v;
-    }
+    settings.speed.value = v;
   })
 
-  // waterFolder.add(GUI_STATE.water, 'depth', 0.0, 1.0, 0.01)
-  // .name('Depth')
-  // .onChange((v) => {
-  //   for (let water of waterObjects) {
-  //     water.material.uniforms.depth.value = v;
-  //   }
-  // })
+
+  let qualityFolder = gui.addFolder('Quality');
+
+  qualityFolder.add(settings.quality, 'reflection', 0.1, 1.0, 0.1)
+  .name('Reflection')
+  .onChange(() => {
+    composer.getResizeFn()(window.innerWidth, window.innerHeight);
+  })
+
+  qualityFolder.add(settings, 'waterResolution', 2.0, 512.0, 2.0)
+  .name('Water resolution')
+  .onChange(() => {
+    // composer.getResizeFn()(window.innerWidth, window.innerHeight);
+  })
+
+
+  let waterFolder = gui.addFolder('Water');
 
   waterFolder.add(GUI_STATE.water, 'uvScale', 0, 128.0, 0.01)
   .name('Waves scale')

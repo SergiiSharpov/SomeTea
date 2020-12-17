@@ -8,7 +8,6 @@ varying vec2 vUv;
 
 varying vec3 vViewPosition;
 varying vec4 vViewUv;
-varying vec4 vCausticViewUv;
 
 uniform float depthScale;
 
@@ -32,10 +31,6 @@ void main() {
   vViewUv = transformedPosition;
   vViewUv.xyz /= vViewUv.w;
   vViewUv.xyz = (vViewUv.xyz + 1.0) * 0.5;
-
-  vCausticViewUv = cameraProjection * cameraView * modelMatrix * vec4( position, 1.0 );
-  vCausticViewUv.xyz /= vCausticViewUv.w;
-  vCausticViewUv.xyz = (vCausticViewUv.xyz + 1.0) * 0.5;
 
   
   vViewPosition = - mvPosition.xyz;

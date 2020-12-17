@@ -8,7 +8,6 @@ varying vec3 vBitangent;
 
 varying vec3 vViewPosition;
 varying vec4 vViewUv;
-varying vec4 vCausticViewUv;
 
 uniform vec2 resolution;
 uniform sampler2D noiseMap;
@@ -61,90 +60,11 @@ const float EtaDelta = 1.0 - Eta;
 // see http://en.wikipedia.org/wiki/Refractive_index Reflectivity
 const float R0 = ((Air - Ice) * (Air - Ice)) / ((Air + Ice) * (Air + Ice));
 
-
-const int NUM_STEPS = 8;
-const float PI	 	= 3.141592;
-const float EPSILON	= 1e-3;
-#define EPSILON_NRM (0.1 / resolution.x)
-#define AA
-
-// sea
-const int ITER_GEOMETRY = 3;
-const int ITER_FRAGMENT = 5;
-const float SEA_HEIGHT = 0.06;
-const float SEA_CHOPPY = 4.0;
-const float SEA_SPEED = 0.8;
-const float SEA_FREQ = 0.16;
-const vec3 SEA_BASE = vec3(0.0,0.09,0.18);
-const vec3 SEA_WATER_COLOR = vec3(0.8,0.9,0.6)*0.6;
-#define SEA_TIME (1.0 + time * SEA_SPEED * speed)
-const mat2 octave_m = mat2(1.6,1.2,-1.2,1.6);
-
-
-float hash( vec2 p ) {
-	float h = dot(p,vec2(127.1,311.7));	
-    return fract(sin(h)*43758.5453123);
-}
-float noise( vec2 p ) {
-    vec2 i = floor( p );
-    vec2 f = fract( p );	
-	vec2 u = f*f*(3.0-2.0*f);
-    return -1.0+2.0*mix( mix( hash( i + vec2(0.0,0.0) ), 
-                     hash( i + vec2(1.0,0.0) ), u.x),
-                mix( hash( i + vec2(0.0,1.0) ), 
-                     hash( i + vec2(1.0,1.0) ), u.x), u.y);
-}
-
-// lighting
-float diffuse(vec3 n,vec3 l,float p) {
-    return pow(dot(n,l) * 0.4 + 0.6,p);
-}
-float specular(vec3 n,vec3 l,vec3 e,float s) {    
-    float nrm = (s + 8.0) / (PI * 8.0);
-    return pow(max(dot(reflect(e,n),l),0.0),s) * nrm;
-}
-
-// sea
-float sea_octave(vec2 uv, float choppy) {
-    uv += noise(uv);        
-    vec2 wv = 1.0-abs(sin(uv));
-    vec2 swv = abs(cos(uv));    
-    wv = mix(wv,swv,wv);
-    return pow(1.0-pow(wv.x * wv.y,0.65),choppy);
-}
-
-float map(vec3 p) {
-    float freq = SEA_FREQ;
-    float amp = SEA_HEIGHT;
-    float choppy = SEA_CHOPPY;
-    vec2 uv = p.xz; uv.x *= 0.75;
-    
-    float d, h = 0.0;    
-    for(int i = 0; i < ITER_GEOMETRY; i++) {        
-    	d = sea_octave((uv+SEA_TIME)*freq,choppy);
-    	d += sea_octave((uv-SEA_TIME)*freq,choppy);
-        h += d * 0.5;        
-    	uv *= octave_m; freq *= 1.9; amp *= 0.22;
-        choppy = mix(choppy,1.0,0.2);
-    }
-    return h;
-}
-
 void main() {
-	float h = map(vPosition.xyz * uvScale);
-  float waveY = mix(heightBounds.x, heightBounds.y, height) - h * 0.005;
-
 	vec3 normal = normalize( vNormal );
 	normal = normal * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
 
 	float inverseRoughness = 1.0 - roughness;
-
-	float caustic = texture2D( causticMap, vCausticViewUv.xy, roughness * float (6.0) ).x;
-	vec3 resultWaterColor = waterColor;
-	if (vPosition.y > waveY) {
-    caustic = 0.0;
-		resultWaterColor = vec3(1.0, 1.0, 1.0);
-  }
 
 	float val = texture2D( noiseMap, vViewUv.xy, roughness * float (6.0) ).x;
 
@@ -174,7 +94,7 @@ void main() {
 	vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
 	float frontLight = clamp(dot(dirLight, targetNormal), 0., 1.);
 
-	vec3 envColor = iceColor * (1.0 - reflectivity) + refractColor0.rgb + v_fresnel_ratio * fresnelPower;//  + caustic * 0.5
+	vec3 envColor = iceColor * (1.0 - reflectivity) + mix(refractColor0, reflectColor0, v_fresnel_ratio).rgb + v_fresnel_ratio * fresnelPower;//  + caustic * 0.5
 
 	gl_FragColor = vec4(envColor, 1.0); // * resultWaterColor
 	

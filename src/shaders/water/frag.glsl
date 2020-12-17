@@ -120,17 +120,6 @@ float map(vec3 p) {
     return h;
 }
 
-float map0(vec2 p) {
-    vec2 uv = p.xy;
-    uv += noise(uv + SEA_TIME);
-
-    vec2 wv = 1.0-abs(sin(uv));
-    vec2 swv = abs(cos(uv));    
-    wv = mix(wv,swv,wv);
-
-    return pow(1.0-pow(wv.x * wv.y,0.65), SEA_CHOPPY);
-}
-
 
 const float eta = 0.7504;
 
@@ -177,11 +166,11 @@ void main() {
   vec3 viewDirection = normalize(vPosition - cameraPosition);
   vec3 targetNormal = -vNormal;
 
-  vec3 v_refraction = refract(viewDirection, targetNormal, Eta);// + EtaDelta * sin(roughness * 3.14 * 0.5 * rougnessMultiplyer)
-	vec3 v_reflection = reflect(viewDirection, targetNormal);
+  vec3 v_refraction = refract(viewDirection, targetNormal, Eta);
+  vec3 v_reflection = reflect(viewDirection, targetNormal);
 
-	vec4 refractColor0 = textureCube( envMap, v_refraction * vec3(-1.0, 1.0, 1.0));
-	vec4 reflectColor0 = textureCube( envMap, v_reflection * vec3(-1.0, 1.0, 1.0));
+  vec4 refractColor0 = textureCube( envMap, v_refraction * vec3(-1.0, 1.0, 1.0));
+  vec4 reflectColor0 = textureCube( envMap, v_reflection * vec3(-1.0, 1.0, 1.0));
 
   float v_fresnel = clamp(1.0 - dot(-viewDirection, targetNormal), 0., 1.);
 	// see http://en.wikipedia.org/wiki/Schlick%27s_approximation
@@ -191,10 +180,4 @@ void main() {
   vec3 resColor = refColor.rgb * waterColor + caustic;
 
   gl_FragColor = vec4(resColor, 1.0);
-
-  //gl_FragColor = vec4(waveY, waveY, waveY, 1.0);
-
-  // gl_FragColor = vec4(pow(waterColor, vec3(0.65)) + caustic, 1.0);
-  // gl_FragColor = vec4(caustic, caustic, caustic, 1.0);
-  // gl_FragColor = vec4(vec3(vViewUv.x, 0.0, vViewUv.y), 1.0);
 }

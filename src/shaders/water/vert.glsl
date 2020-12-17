@@ -52,8 +52,6 @@ void main() {
 
   vec4 mvPosition = vec4( transformed.xyz, 1.0 );
   mvPosition = viewMatrix * mvPosition;
-  
-//   vec4 transformedPosition = cameraProjection * cameraView * modelMatrix * mvPosition;
 
   mat4 viewRotation = mat4(mat3(viewMatrix));
 
@@ -64,14 +62,10 @@ void main() {
   vViewRealUv = projectionMatrix * viewMatrix * modelMatrix * vec4( transformed.xyz, 1.0 );
   vViewRealUv.xyz /= vViewRealUv.w;
   vViewRealUv.xy = (vViewRealUv.xy + 1.0) * 0.5;
-
-//   vViewUv = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-//   vViewUv.xyz /= vViewUv.w;
-//   vViewUv.xy = (vViewUv.xy + 1.0) * 0.5;
   
   vViewPosition = - mvPosition.xyz;
 
   vWPMatrix = projectionMatrix * viewMatrix;
 
-  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);// newPosition.x, mix(heightBounds.x, heightBounds.y, height), newPosition.z
+  gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
 }

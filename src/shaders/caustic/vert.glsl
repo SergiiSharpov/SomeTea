@@ -120,7 +120,7 @@ const float eta = 0.7504;
 // TODO Make this a uniform
 // This is the maximum iterations when looking for the ray intersection with the environment,
 // if after this number of attempts we did not find the intersection, the result will be wrong.
-const int MAX_ITERATIONS = 50;
+const int MAX_ITERATIONS = 32;
 
 vec3 getNormal(vec3 p, float eps) {
     vec3 n;
@@ -135,7 +135,6 @@ void main() {
   vUv = uv;
 
   float maxY = heightBounds.y * height;
-  //wavePower = cos(((maxY - position.y) / (maxY - heightBounds.x)) * 3.14); 
   wavePower = ((maxY - position.y) / (maxY - heightBounds.x)); 
 
   vPosition = vec3( modelMatrix * vec4( position, 1.0 ));
@@ -144,10 +143,8 @@ void main() {
   float h = map(position.xyz * uvScale);
   vec3 n = getNormal(position.xyz * uvScale, 1.0 / 1024.0);
 
-  vec3 transformed = vec3(position.x, mix(heightBounds.x, heightBounds.y, height) + h * 0.005, position.z);//vec3( position.x * 0.9, position.y + 0.05, position.z * 0.9 );
+  vec3 transformed = vec3(position.x, mix(heightBounds.x, heightBounds.y, height) + h * 0.005, position.z);
 
-  //vec4 mvPosition = vec4( transformed.x, map(vec3(transformed.x, mix(heightBounds.x, heightBounds.y,0.0), transformed.z) * uvScale), transformed.z, 1.0 );
-  // vec4 mvPosition = vec4( transformed.x, map0(uv) * (heightBounds.y - heightBounds.x), transformed.z, 1.0 );
   vec4 mvPosition = vec4( transformed.xyz, 1.0 );
   mvPosition = viewMatrix * mvPosition;
   
@@ -160,21 +157,6 @@ void main() {
 
   vWPMatrix = projectionMatrix * viewMatrix;
 
-
-
-  
-  //vec3( cameraViewInverse * cameraProjectionInverse * texturePosition).xyz;
-
-  // vec4 texturePosition = vec4(texture2D(causticDepthMap, uv).rgb, 1.0);
-
-  // resColor = texturePosition.rgb;
-
-  // // texturePosition = texturePosition * 2.0 - 1.0;
-
-  // newPosition = vec3( cameraViewInverse * cameraProjectionInverse * texturePosition).xyz;
-
-
-  // gl_Position = projectionMatrix * viewMatrix * vec4(vec3(newPosition.x, newPosition.y, newPosition.z), 1.0);
   vec2 currentPosition = uv;
   float currentDepth = transformed.y;
 
@@ -217,10 +199,9 @@ void main() {
   newPosition = pos.xyz;
 
   float causticScale = (heightBounds.y - newPosition.y) / (heightBounds.y - heightBounds.x);
-  //newPosition.y = oldPosition.y - 0.01;// + causticScale * 0.5;
 
   depth = currentDepth;
   waterDepth = transformed.y;
 
-  gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0);// newPosition.x, mix(heightBounds.x, heightBounds.y, height), newPosition.z
+  gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0);
 }

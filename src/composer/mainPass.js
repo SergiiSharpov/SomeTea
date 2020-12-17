@@ -44,6 +44,12 @@ import WaterPlaneShader from '../shaders/waterPlane';
 import BubbleShader from '../shaders/bubble';
 
 
+let mainWaterPlane = null;
+
+const clampedRandom = (min, max) => min + Math.random() * (max - min);
+const clamp = (min, max, x) => Math.min(max, Math.max(min, x));
+const sinLerp = (a, b, t) => a + Math.sin(clamp(0.0, 1.0, t) * Math.PI * 0.5) * (b - a);
+
 export const LAYERS = {
   GLASS: 2,
   ICE: 3,
@@ -69,11 +75,30 @@ export const LAYERS_OBJECTS = {
 
 export const settings = {
   waterColor: new Color(214 / 255, 162 / 255, 72 / 255),
-  waterScale: {value: 20.0}
-}
+  waterScale: {value: 20.0},
+  speed: {value: 1.0},
 
-const _shaderSettings = {
-  waterDepthWrite: false
+  quality: {
+    reflection: 1.0,
+
+    rayTracingSteps: 5
+  },
+
+  _waterResolution: 128,
+
+  get waterResolution() {
+    return this._waterResolution;
+  },
+
+  set waterResolution(value) {
+    let target = clamp(2.0, 512, value);
+    this._waterResolution = target;
+
+    if (mainWaterPlane) {
+      mainWaterPlane.geometry = new PlaneBufferGeometry(0.09, 0.09, target, target);
+      mainWaterPlane.geometry.rotateX(-Math.PI * 0.5)
+    }
+  }
 }
 
 glassLayer.set(LAYERS.GLASS);
@@ -112,13 +137,13 @@ const setGlassMaterial = (mesh, camera, orthoCamera, waterObject, texture, cubeT
 
       cameraProjection: {value: orthoCamera.projectionMatrix},
       cameraView: {value: orthoCamera.matrixWorldInverse},
+
+      speed: settings.speed
     },
 
     side: (mesh.name.indexOf('inner') !== -1) ? FrontSide : FrontSide
   });
 
-  console.log(mesh)
-  //mesh.geometry.computeFaceNormals();
   if (mesh.name.indexOf('inner') !== -1) {
     mesh.renderOrder = 1;
   } else {
@@ -199,7 +224,8 @@ const setWaterMaterial = (mesh, camera, baseMaterial, envTexture, depthTexture, 
       cameraView: {value: camera.matrixWorldInverse},
 
       waterColor: {value: settings.waterColor},
-      uvScale: settings.waterScale
+      uvScale: settings.waterScale,
+      speed: settings.speed
     },
     userData: {baseMaterial}
   });
@@ -230,7 +256,9 @@ const getCausticMaterial = (mesh, camera, baseMaterial, envTexture, depthTexture
       cameraProjectionInverse: {value: camera.projectionMatrixInverse},
       cameraViewInverse: {value: camera.matrixWorld},
 
-      uvScale: settings.waterScale
+      uvScale: settings.waterScale,
+
+      speed: settings.speed
     },
     userData: {baseMaterial}
   });
@@ -263,7 +291,9 @@ const setWaterPlaneMaterial = (mesh, waterPlane, camera, baseMaterial, envTextur
       cameraView: {value: camera.matrixWorldInverse},
 
       waterColor: {value: settings.waterColor},
-      uvScale: settings.waterScale
+      uvScale: settings.waterScale,
+
+      speed: settings.speed
     },
     userData: {baseMaterial}
   });
@@ -288,10 +318,6 @@ const getBaseWaterMaterial = () => {
   return waterMaterial;
 }
 
-const clampedRandom = (min, max) => min + Math.random() * (max - min);
-const clamp = (min, max, x) => Math.min(max, Math.max(min, x));
-const sinLerp = (a, b, t) => a + Math.sin(clamp(0.0, 1.0, t) * Math.PI * 0.5) * (b - a);
-
 export class MainPass extends Pass {
   constructor(scene, camera, renderer, thicknessMap, environmentMap, controls) {
     super();
@@ -309,8 +335,8 @@ export class MainPass extends Pass {
 
     const pars = { minFilter: LinearFilter, magFilter: LinearFilter, format: RGBAFormat, wrapS: RepeatWrapping, wrapT: RepeatWrapping };
 
-    this.depthTexture = new DepthTexture(1024, 1024);
-    this.waterDepthTexture = new DepthTexture(1024, 1024);
+    this.depthTexture = new DepthTexture(512, 512);
+    this.waterDepthTexture = new DepthTexture(512, 512);
 
     this.renderTargetReflectionBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter, depthTexture: this.depthTexture} );
     this.renderTargetReflectionBuffer.texture.name = "ReflectionsPass.depth";
@@ -386,14 +412,14 @@ export class MainPass extends Pass {
     this.iceObjects = [];
     this.waterObjects = [];
 
-    this.waterResolution = 512.0;
 
-
-    const waterPlaneGeometry = new PlaneBufferGeometry(0.09, 0.09, this.waterResolution, this.waterResolution);
+    const waterPlaneGeometry = new PlaneBufferGeometry(0.09, 0.09, settings.waterResolution, settings.waterResolution);
     waterPlaneGeometry.rotateX(-Math.PI * 0.5)
     const waterPlaneMaterial = new MeshBasicMaterial({color: 0x0088ff});
     this.waterPlane = new Mesh(waterPlaneGeometry, waterPlaneMaterial);
     this.waterPlane.layers.set(LAYERS.WATER);
+
+    mainWaterPlane = this.waterPlane;
 
     this.waterObjects.push(this.waterPlane);
 
@@ -501,7 +527,10 @@ export class MainPass extends Pass {
   }
 
   animateBubbles(dt) {
-    // console.log(dt * 60.0)
+    if (settings.speed.value <= 0.0) {
+      return false;
+    }
+
     for(let bubble of this.bubbles) {
       bubble.mesh.position.lerpVectors(bubble.startPos, bubble.endPos, bubble.current / bubble.life);
       bubble.mesh.rotation.setFromRotationMatrix(this.camera.matrixWorld);
@@ -513,7 +542,7 @@ export class MainPass extends Pass {
       }
       
 
-      bubble.current += dt * 1000.0;
+      bubble.current += dt * 1000.0 * settings.speed.value;
       if (bubble.current >= bubble.life) {
         this.resetBubble(bubble.index);
       }
@@ -521,26 +550,24 @@ export class MainPass extends Pass {
   }
 
   setSize(w, h) {
-    // this.renderTargetReflectionBuffer.setSize(Math.ceil(w / 2), Math.ceil(h / 2));
+    const reflectionWidth = Math.max(2.0, Math.floor(w * settings.quality.reflection));
+    const reflectionHeight = Math.max(2.0, Math.floor(h * settings.quality.reflection));
+
     this.renderTargetReflectionBuffer.setSize(w, h);
-    this.renderTargetIceBuffer.setSize(w, h);
-    this.renderTargetFXAABuffer.setSize(w, h);
     
-    this.renderTargetInnerTextureBuffer.setSize(w, h);
-
-    this.renderTargetCausticDepthBuffer.setSize(w, h);
-    this.renderTargetCausticTextureBuffer.setSize(w, h);
-
-    this.renderTargetBubblesBuffer.setSize(w, h);
-
+    this.renderTargetFXAABuffer.setSize(w, h);
     this.FXAAMaterial.uniforms.resolution.value.set(1 / w, 1 / h);
+    
+    this.renderTargetInnerTextureBuffer.setSize(reflectionWidth, reflectionHeight);
+    this.renderTargetIceBuffer.setSize(reflectionWidth, reflectionHeight);
+    this.renderTargetBubblesBuffer.setSize(reflectionWidth, reflectionHeight);
+
+    this.renderTargetCausticDepthBuffer.setSize(reflectionWidth, reflectionHeight);
+    this.renderTargetCausticTextureBuffer.setSize(reflectionWidth, reflectionHeight);
+    
 
     for (let object of this.iceObjects) {
-      object.material.uniforms.resolution.value.set(w, h);
-    }
-
-    for (let object of this.waterObjects) {
-      //object.material.uniforms.resolution.value.set(w, h);
+      object.material.uniforms.resolution.value.set(reflectionWidth, reflectionHeight);
     }
   }
 

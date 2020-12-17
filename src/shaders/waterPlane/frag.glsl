@@ -70,7 +70,6 @@ const float causticScale = 0.1;
 
 // main
 void main() {
-
 	float alpha = texture2D(causticDepthMap, vUv.xy).a;
 	if (alpha == 0.) {
 		discard;
@@ -85,7 +84,7 @@ void main() {
 	vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
 	float light = pow(clamp(dot(dirLight, targetNormal), 0.0, 1.0), 4.0);
 
-  vec3 v_refraction = refract(viewDirection, targetNormal, Eta);// + EtaDelta * sin(roughness * 3.14 * 0.5 * rougnessMultiplyer)
+  vec3 v_refraction = refract(viewDirection, targetNormal, Eta);
 	vec3 v_reflection = reflect(viewDirection, targetNormal);
 
 	vec4 refractColor0 = textureCube( envMap, v_refraction * vec3(-1.0, 1.0, 1.0));
@@ -100,13 +99,5 @@ void main() {
   vec3 refColor = mix(waterColor, reflectionColor, v_fresnel_ratio);
   vec3 resColor = reflectionColor.rgb * waterColor + (v_fresnel_ratio + light) * 0.2;
 
-	//resColor = mix(waterColor, innerColor, length(resColor));
-
-	// * texture2D(innerMap, vUv.xy).a;
-
   gl_FragColor = vec4(resColor.rgb, alpha);
-
-  // gl_FragColor = vec4(pow(waterColor, vec3(0.65)) + caustic, 1.0);
-  // gl_FragColor = vec4(caustic, caustic, caustic, 1.0);
-  // gl_FragColor = vec4(vec3(vViewUv.x, 0.0, vViewUv.y), 1.0);
 }

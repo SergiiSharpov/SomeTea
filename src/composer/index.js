@@ -1,6 +1,8 @@
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { MainPass, LAYERS, LAYERS_OBJECTS } from './mainPass';
 
+import Stats from 'stats-js';
+
 const getComposer = () => {
   let onRender = () => {};
   let onResize = () => {};
@@ -15,6 +17,9 @@ const getComposer = () => {
   const init = (scene, camera, renderer, thicknessMap, textureCube, controls) => {
     const composer = new EffectComposer( renderer );
     composer.addPass( new MainPass(scene, camera, renderer, thicknessMap, textureCube, controls) );
+
+    let stats = new Stats();
+    document.body.appendChild( stats.dom );
   
     resize = (width, height) => {
       const targetWidth = width || renderer.domElement.parentNode.offsetWidth;
@@ -30,7 +35,9 @@ const getComposer = () => {
     onResize = () => resize(window.innerWidth, window.innerHeight);
   
     onRender = () => {
+      stats.begin();
       composer.render();
+      stats.end();
     };
   
     render = () => {

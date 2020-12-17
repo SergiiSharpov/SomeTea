@@ -125,7 +125,6 @@ void main() {
   vUv = uv;
 
   float maxY = heightBounds.y * height;
-  //wavePower = cos(((maxY - position.y) / (maxY - heightBounds.x)) * 3.14); 
   wavePower = ((maxY - position.y) / (maxY - heightBounds.x)); 
 
   vPosition = vec3( modelMatrix * vec4( position, 1.0 ));
@@ -136,10 +135,8 @@ void main() {
 
   vNormal = normalize(modelMatrix * vec4( n, 1.0 )).xyz;
 
-  vec3 transformed = vec3(position.x * 0.95, mix(heightBounds.x, heightBounds.y, height) - h * 0.005, position.z * 0.95);//vec3( position.x * 0.9, position.y + 0.05, position.z * 0.9 );
+  vec3 transformed = vec3(position.x * 0.95, mix(heightBounds.x, heightBounds.y, height) - h * 0.005, position.z * 0.95);
 
-  //vec4 mvPosition = vec4( transformed.x, map(vec3(transformed.x, mix(heightBounds.x, heightBounds.y,0.0), transformed.z) * uvScale), transformed.z, 1.0 );
-  // vec4 mvPosition = vec4( transformed.x, map0(uv) * (heightBounds.y - heightBounds.x), transformed.z, 1.0 );
   vec4 mvPosition = vec4( transformed.xyz, 1.0 );
   mvPosition = viewMatrix * mvPosition;
   
@@ -156,6 +153,5 @@ void main() {
 
   vWPMatrix = projectionMatrix * viewMatrix;
 
-
-  gl_Position = projectionMatrix * viewMatrix * vec4(transformed, 1.0);// newPosition.x, mix(heightBounds.x, heightBounds.y, height), newPosition.z
+  gl_Position = projectionMatrix * viewMatrix * vec4(transformed, 1.0);
 }

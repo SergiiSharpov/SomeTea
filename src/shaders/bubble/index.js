@@ -1,4 +1,4 @@
-import {UniformsUtils, DoubleSide} from 'three';
+import {UniformsUtils, DoubleSide, AdditiveBlending} from 'three';
 
 import vertexShader from './vert.glsl';
 import fragmentShader from './frag.glsl';
@@ -18,7 +18,9 @@ const BubbleShader = {
   side: DoubleSide,
 
   depthTest: true,
-  depthWrite: true
+  depthWrite: true,
+
+  blending: AdditiveBlending
 };
 
 export default BubbleShader;

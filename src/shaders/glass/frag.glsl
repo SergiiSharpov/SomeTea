@@ -192,11 +192,8 @@ void main() {
 	float mipMapLevel = float( roughness * 8.0 * rougnessMultiplyer );
 
 	float roughnessInverse = 1.0 - (roughness * rougnessMultiplyer);
-	float alpha = 1.0 - absorption;
 
 	vec3 normal = normalize( vNormal );
-	//normal = normal * ( float( gl_FrontFacing ) * 2.0 - 1.0 );
-	
 	vec3 mapN = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;
 	normal = perturbNormal2Arb( -vViewPosition, normal, normalize(mapN) );
 
@@ -204,14 +201,8 @@ void main() {
 	vec3 dirLight = vec3(0.808049, 0.685002, 0.42915);
 	vec3 viewDirection = normalize(vPosition - cameraPosition);
 
-	vec3 screenViewDirection = normalize(vViewPosition);
-	vec3 screenNormal = (viewMatrix * vec4(normal, 0.0)).xyz;
-
 	float face = float( gl_FrontFacing ) * 2.0 - 1.0;
-	
 	vec3 targetNormal = normal * face;
-
-	float isBackFace = step(0.0, dot(viewDirection, targetNormal));
 	
 
 	vec3 v_refraction = refract(viewDirection, targetNormal, Eta + thickness * 0.1);// + EtaDelta * sin(roughness * 3.14 * 0.5 * rougnessMultiplyer)
@@ -267,26 +258,14 @@ void main() {
 
 	/** Inner color calculation end */
 
-	vec4 innerRefColor = mix(innerRefColor0, innerRefColor1, innerWaterAlpha);
-	//vec4 innerRefColor = texture2D(envMap, vViewUv.xy, mipMapLevel);
-	innerRefColor.a = clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0);
-
 	vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
 	
-	vec4 refColorResult = mix(innerCol, refColor, (1.0 - innerCol.a));
+	vec4 refColorResult = mix(innerCol, refColor, (1.0 - innerCol.a + thickness));
 	refColorResult = mix(refColorResult, refColor, v_fresnel);
 	refColorResult = mix(refColor, refColorResult, roughnessInverse);
-
-	vec4 totalRefColor = mix(refColor, innerRefColor1, clamp((innerRefColor.a - absorption) * roughnessInverse, 0.0, 1.0));// innerRefColor.a
 	
 	vec4 baseColor = vec4(glassColor, 1.0) * (1.0 - reflectivity);
 	float fresnelResult = v_fresnel_ratio * fresnelPower;
-	
-	vec4 resultColor = baseColor + totalRefColor + fresnelResult + frontLight;
-
-	float vertexDist = length(vPosition.xyz);
-	float normalDist = step(0.5, length(vPosition.xyz + vNormal.xyz) - vertexDist);
-	vec3 faceColor = mix(vec3(0.0, 0.5, 1.0), vec3(1.0, 0.0, 0.0), face);
 
 	float resultAlpha = max(max(innerRefColor0.a, innerRefColor1.a), v_fresnel + roughness * rougnessMultiplyer + thickness);
 
@@ -296,5 +275,5 @@ void main() {
 	
 	vec3 outputColor = baseColor.rgb + refColorResult.rgb + fresnelResult;
 	
-	gl_FragColor = vec4(outputColor.rgb, 1.0);
+	gl_FragColor = vec4(outputColor.rgb, resultAlpha + innerCol.a);
 }

@@ -21,6 +21,8 @@ uniform sampler2D causticMap;
 uniform float roughness;
 uniform sampler2D roughnessMap;
 
+uniform float waterOpacity;
+
 uniform float fresnelPower;
 uniform vec3 glassColor;
 uniform float reflectivity;
@@ -34,6 +36,10 @@ uniform float uvScale;
 
 uniform float height;
 uniform vec2 heightBounds;
+
+uniform vec2 causticTexelSize;
+uniform float causticPower;
+uniform float causticSoftness;
 
 uniform mat4 cameraProjectionInverse;
 uniform mat4 cameraViewInverse;
@@ -186,6 +192,9 @@ float circle(vec2 uv, vec2 pos, float rad) {
 
 
 void main() {
+	vec2 targetUV = vViewUv.xy / vViewUv.w;
+  targetUV = (targetUV + 1.0) * 0.5;
+
 	float thickness = texture2D(thicknessMap, vec2(vUv.x, 1.0 - vUv.y)).r;
 
 	float rougnessMultiplyer = texture2D(roughnessMap, vUv).r;
@@ -215,22 +224,24 @@ void main() {
 	// see http://en.wikipedia.org/wiki/Schlick%27s_approximation
 	float v_fresnel_ratio = (R0 + ((1.0 - R0) * pow(v_fresnel, 8.0)));
 
+	vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
+
 	float uvScalePower = 1.0 - v_fresnel;
 	float refractionPower = dot(viewDirection, v_refraction);
 	float reflectionPower = dot(viewDirection, v_reflection);
 
 	float frontLight = pow(clamp(dot(dirLight, targetNormal), 0., 1.) * 0.8, 4.0);
 
-	float innerWaterAlpha = texture2D(waterMap, vViewUv.xy).a;
+	float innerWaterAlpha = texture2D(waterMap, targetUV.xy).a;
 
-	vec4 innerRefColor0 = texture2D(envMap, vViewUv.xy, mipMapLevel);
-	vec4 innerRefColor1 = texture2D(waterMap, vViewUv.xy, mipMapLevel);
+	vec4 innerRefColor0 = texture2D(envMap, targetUV.xy, mipMapLevel);
+	vec4 innerRefColor1 = texture2D(waterMap, targetUV.xy, mipMapLevel);
 
   /** Inner color calculation */
-	float waterDepth = texture2D(waterDepthMap, vViewUv.xy).r;
-	float innerDepth = texture2D(innerDepthMap, vViewUv.xy).r;
+	float waterDepth = texture2D(waterDepthMap, targetUV.xy).r;
+	float innerDepth = texture2D(innerDepthMap, targetUV.xy).r;
 
-	vec4 realCoord = cameraProjectionInverse * vec4(vec3(vViewUv.x, vViewUv.y, innerDepth) * 2.0 - 1.0, 1.0);
+	vec4 realCoord = cameraProjectionInverse * vec4(vec3(targetUV.x, targetUV.y, min(innerDepth, waterDepth)) * 2.0 - 1.0, 1.0);
 	realCoord = cameraViewInverse * (realCoord / realCoord.w);
 
 	
@@ -249,16 +260,26 @@ void main() {
 		/** Caustic color */
 
 		vec4 screenPosition = cameraProjection * cameraView * vec4(realCoord.xyz, 1.0);
-		screenPosition = screenPosition * 0.5 + 0.5;
-		float caustic = texture2D(causticMap, screenPosition.xy).r;
+		screenPosition = screenPosition * 0.5 + 0.5;//causticTexelSize
+		float caustic = 
+			texture2D(causticMap, screenPosition.xy, 0.0).r
+		+ texture2D(causticMap, screenPosition.xy, 1.0 * causticSoftness).r
+		+ texture2D(causticMap, screenPosition.xy, 2.0 * causticSoftness).r
+		+ texture2D(causticMap, screenPosition.xy, 3.0 * causticSoftness).r;
+
+		caustic *= 0.25;
 
 		/** Caustic color end*/
 
-	vec4 innerCol = mix(innerRefColor0 * waterColorMult + caustic * isUnderwater * 0.5, innerRefColor1, step(waterDepth, innerDepth));
+	vec4 waterBase = vec4(mix(waterColor + v_fresnel + frontLight, refColor.rgb * waterColor, 0.2), 1.0);
+
+	vec4 resultWaterColor = mix(innerRefColor1 + caustic * isUnderwater * causticPower, waterBase, waterOpacity * innerRefColor1.a * isUnderwater);
+	vec4 resultUnderWaterColor = mix(innerRefColor0 * waterColorMult + caustic * isUnderwater * causticPower, waterBase, waterOpacity * isUnderwater);
+
+	vec4 innerCol = mix(resultUnderWaterColor, resultWaterColor, step(waterDepth, innerDepth));
+	//innerCol = mix(innerCol, resultWaterColor, step(waterDepth, innerDepth));
 
 	/** Inner color calculation end */
-
-	vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
 	
 	vec4 refColorResult = mix(innerCol, refColor, (1.0 - innerCol.a + thickness));
 	refColorResult = mix(refColorResult, refColor, v_fresnel);
@@ -272,8 +293,9 @@ void main() {
 	vec3 col = baseColor.rgb + mix(refColor.rgb, innerRefColor1.rgb, innerRefColor1.a) + fresnelResult;
 
 
-	
+	float waterAlpha = (step(innerDepth, waterDepth) + step(waterDepth, innerDepth)) * innerCol.a;
 	vec3 outputColor = baseColor.rgb + refColorResult.rgb + fresnelResult;
-	
-	gl_FragColor = vec4(outputColor.rgb, resultAlpha + innerCol.a);
+	// 1.0 - dot(normalize(-vec3(vPosition.x, 0.0, vPosition.z)), normalize(vec3(targetNormal.x, 0.0, targetNormal.z)))
+	gl_FragColor = vec4(outputColor.rgb, resultAlpha + innerCol.a + (1.0 - reflectivity));
+	// gl_FragColor = vec4(vec3(innerCol.rgb), waterAlpha);
 }

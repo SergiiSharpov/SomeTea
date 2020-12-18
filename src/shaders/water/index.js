@@ -41,7 +41,7 @@ const WaterShader = {
   fragmentShader,
   
   transparent: true,
-  // alphaTest: 0.1,
+  // alphaTest: 0.9,
 
   // wireframe: true,
 
@@ -59,9 +59,9 @@ const WaterShader = {
   // blendSrc: SrcAlphaFactor,
   // blendDst: OneMinusSrcAlphaFactor,
 
-  polygonOffset: true,
-  polygonOffsetFactor: 0,
-  polygonOffsetUnits: -32
+  //polygonOffset: true,
+  //polygonOffsetFactor: 0,
+  // polygonOffsetUnits: -32
 };
 
 export default WaterShader;

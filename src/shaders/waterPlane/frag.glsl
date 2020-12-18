@@ -94,10 +94,10 @@ void main() {
 	// see http://en.wikipedia.org/wiki/Schlick%27s_approximation
 	float v_fresnel_ratio = (R0 + ((1.0 - R0) * pow(v_fresnel, 8.0)));
 
-	vec3 innerPart = mix(waterColor, innerColor, length(innerColor));
-	vec3 reflectionColor = mix(innerColor, reflectColor0.rgb, 0.2);
-  vec3 refColor = mix(waterColor, reflectionColor, v_fresnel_ratio);
-  vec3 resColor = reflectionColor.rgb * waterColor + (v_fresnel_ratio + light) * 0.2;
+	vec3 reflectionColor = mix(mix(innerColor * waterColor, waterColor, opacity), reflectColor0.rgb * waterColor, 0.2);
+	
+  vec3 resColor = reflectionColor.rgb + (v_fresnel_ratio + light) * 0.2;
+	// resColor = mix(resColor, waterColor, opacity);
 
   gl_FragColor = vec4(resColor.rgb, alpha);
 }

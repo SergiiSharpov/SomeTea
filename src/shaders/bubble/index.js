@@ -6,7 +6,8 @@ import fragmentShader from './frag.glsl';
 const BubbleShader = {
 	uniforms: UniformsUtils.merge([
     {
-      opacity: {value: 0.0}
+      opacity: {value: 0.0},
+      bubblesPower: {value: 1.0}
     }
   ]),
 
@@ -20,7 +21,7 @@ const BubbleShader = {
   depthTest: true,
   depthWrite: true,
 
-  blending: AdditiveBlending
+  // blending: AdditiveBlending
 };
 
 export default BubbleShader;

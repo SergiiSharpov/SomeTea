@@ -160,7 +160,6 @@ void main() {
     discard;
   }
   
-  
   float caustic = texture2D(causticMap, vViewUv.xy).r;
 
   vec3 viewDirection = normalize(vPosition - cameraPosition);
@@ -173,11 +172,11 @@ void main() {
   vec4 reflectColor0 = textureCube( envMap, v_reflection * vec3(-1.0, 1.0, 1.0));
 
   float v_fresnel = clamp(1.0 - dot(-viewDirection, targetNormal), 0., 1.);
-	// see http://en.wikipedia.org/wiki/Schlick%27s_approximation
-	float v_fresnel_ratio = (R0 + ((1.0 - R0) * pow(v_fresnel, 8.0)));
+  // see http://en.wikipedia.org/wiki/Schlick%27s_approximation
+  float v_fresnel_ratio = (R0 + ((1.0 - R0) * pow(v_fresnel, 8.0)));
 
   vec4 refColor = mix(refractColor0, reflectColor0, v_fresnel_ratio);
-  vec3 resColor = refColor.rgb * waterColor + caustic;
+  vec3 resColor = mix(refColor.rgb * waterColor, waterColor, opacity);
 
   gl_FragColor = vec4(resColor, 1.0);
 }

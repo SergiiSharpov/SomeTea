@@ -56,6 +56,12 @@ const GlassShader = {
 
       waterColor: {value: new Color(173, 165, 48).multiplyScalar(1.0 / 255.0)},
       highWaterColor: {value: new Color(212, 139, 57).multiplyScalar(1.0 / 255.0)},
+      waterOpacity: {value: 0.0},
+
+      causticTexelSize: {value: new Vector2()},
+
+      causticPower: {value: 1.0},
+      causticSoftness: {value: 0.0},
 
       time: {value: 0.0},
       speed: {value: 1.0},

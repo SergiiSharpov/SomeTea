@@ -121,20 +121,26 @@ const createGui = (scene, renderer) => {
   })
 
   qualityFolder.add(settings, 'waterResolution', 2.0, 512.0, 2.0)
-  .name('Water resolution')
-  .onChange(() => {
-    // composer.getResizeFn()(window.innerWidth, window.innerHeight);
-  })
+  .name('Water resolution');
+
+  let bubblesFolder = gui.addFolder('Bubbles');
+
+  bubblesFolder.add(settings.bubblesPower, 'value', 0, 1.0, 0.01)
+  .name('Intensity');
+
+  let causticFolder = gui.addFolder('Caustic');
+
+  causticFolder.add(settings.causticPower, 'value', 0, 1.0, 0.01)
+  .name('Intensity');
+
+  causticFolder.add(settings.causticSoftness, 'value', 0, 2.0, 0.01)
+  .name('Softness');
 
 
   let waterFolder = gui.addFolder('Water');
 
-  waterFolder.add(GUI_STATE.water, 'uvScale', 0, 128.0, 0.01)
-  .name('Waves scale')
-  .onChange((v) => {
-    settings.waterScale.value = v;
-    
-  })
+  waterFolder.add(settings.waterScale, 'value', 0, 128.0, 0.01)
+  .name('Waves scale');
 
   waterFolder.addColor(GUI_STATE.water, 'waterColor')
   .name('Color')
@@ -142,29 +148,8 @@ const createGui = (scene, renderer) => {
     settings.waterColor.fromArray(v.map(i => i / 255));
   })
 
-  // waterFolder.addColor(GUI_STATE.water, 'highWaterColor')
-  // .name('Peaks color')
-  // .onChange((v) => {
-  //   for (let water of waterObjects) {
-  //     water.material.uniforms.highWaterColor.value.fromArray(v.map(i => i / 255));
-  //   }
-  // })
-
-  waterFolder.add(GUI_STATE.water, 'opacity', 0.0, 1.0, 0.01)
-  .name('Water opacity')
-  .onChange((v) => {
-    for (let water of waterObjects) {
-      water.material.uniforms.opacity.value = v;
-    }
-  })
-
-  // waterFolder.add(GUI_STATE.water, 'height', 0.01, 1.0, 0.01)
-  // .name('Water height')
-  // .onChange((v) => {
-  //   for (let water of waterObjects) {
-  //     water.material.uniforms.height.value = v;
-  //   }
-  // })
+  waterFolder.add(settings.waterOpacity, 'value', 0.0, 1.0, 0.01)
+  .name('Water opacity');
 
   let glassFolder = gui.addFolder('Glass');
 
@@ -197,14 +182,6 @@ const createGui = (scene, renderer) => {
   .onChange((v) => {
     for (let glass of glassObjects) {
       glass.material.uniforms.fresnelPower.value = v;
-    }
-  })
-
-  glassFolder.add(GUI_STATE.glass, 'absorption', 0.0, 1.0, 0.01)
-  .name('Light absorption')
-  .onChange((v) => {
-    for (let glass of glassObjects) {
-      glass.material.uniforms.absorption.value = v;
     }
   })
 

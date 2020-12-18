@@ -5,7 +5,6 @@ import {
   LinearFilter, 
   RGBAFormat, 
   WebGLRenderTarget,
-  WebGLMultisampleRenderTarget,
   RepeatWrapping,
   LinearMipMapLinearFilter,
   Box3,
@@ -76,7 +75,14 @@ export const LAYERS_OBJECTS = {
 export const settings = {
   waterColor: new Color(214 / 255, 162 / 255, 72 / 255),
   waterScale: {value: 20.0},
+  waterOpacity: {value: 0.0},
+
   speed: {value: 1.0},
+
+  causticPower: {value: 1.0},
+  causticSoftness: {value: 0.0},
+
+  bubblesPower: {value: 1.0},
 
   quality: {
     reflection: 1.0,
@@ -138,7 +144,11 @@ const setGlassMaterial = (mesh, camera, orthoCamera, waterObject, texture, cubeT
       cameraProjection: {value: orthoCamera.projectionMatrix},
       cameraView: {value: orthoCamera.matrixWorldInverse},
 
-      speed: settings.speed
+      speed: settings.speed,
+      waterOpacity: settings.waterOpacity,
+
+      causticPower: settings.causticPower,
+      causticSoftness: settings.causticSoftness,
     },
 
     side: (mesh.name.indexOf('inner') !== -1) ? FrontSide : FrontSide
@@ -225,7 +235,9 @@ const setWaterMaterial = (mesh, camera, baseMaterial, envTexture, depthTexture, 
 
       waterColor: {value: settings.waterColor},
       uvScale: settings.waterScale,
-      speed: settings.speed
+      speed: settings.speed,
+
+      opacity: settings.waterOpacity
     },
     userData: {baseMaterial}
   });
@@ -293,7 +305,9 @@ const setWaterPlaneMaterial = (mesh, waterPlane, camera, baseMaterial, envTextur
       waterColor: {value: settings.waterColor},
       uvScale: settings.waterScale,
 
-      speed: settings.speed
+      speed: settings.speed,
+
+      opacity: settings.waterOpacity
     },
     userData: {baseMaterial}
   });
@@ -367,9 +381,9 @@ export class MainPass extends Pass {
     this.renderTargetCausticDepthBuffer.texture.name = "CausticDepthPass.depth";
     this.renderTargetCausticDepthBuffer.texture.generateMipmaps = false;
 
-    this.renderTargetCausticTextureBuffer = new WebGLRenderTarget( 1024, 1024, {...pars} );
+    this.renderTargetCausticTextureBuffer = new WebGLRenderTarget( 1024, 1024, {...pars, minFilter: LinearMipMapLinearFilter} );
     this.renderTargetCausticTextureBuffer.texture.name = "CausticColorPass.depth";
-    this.renderTargetCausticTextureBuffer.texture.generateMipmaps = false;
+    this.renderTargetCausticTextureBuffer.texture.generateMipmaps = true;
 
     this.causticMaterial0 = new MeshBasicMaterial({map: this.renderTargetReflectionBuffer.texture});
     this.causticQuad = new Pass.FullScreenQuad(this.causticMaterial0);
@@ -476,11 +490,14 @@ export class MainPass extends Pass {
       let geom = new PlaneBufferGeometry(1.0, 1.0, 1.0, 1.0);
       let mat = new ShaderMaterial( {
         ...BubbleShader,
-        uniforms: UniformsUtils.clone( BubbleShader.uniforms )
+        uniforms: {
+          ...UniformsUtils.clone( BubbleShader.uniforms ),
+          bubblesPower: settings.bubblesPower
+        }
       });
       let mesh = new Mesh(geom, mat);
       mesh.layers.set(LAYERS.BUBBLES);
-      // mesh.renderOrder = 8;
+      mesh.renderOrder = 8;
       
       let bubble = {
         mesh,
@@ -568,6 +585,10 @@ export class MainPass extends Pass {
 
     for (let object of this.iceObjects) {
       object.material.uniforms.resolution.value.set(reflectionWidth, reflectionHeight);
+    }//texelSize
+
+    for (let object of this.glassObjects) {
+      object.material.uniforms.causticTexelSize.value.set(1 / reflectionWidth, 1 / reflectionWidth);
     }
   }
 

@@ -21,8 +21,8 @@ void main() {
   
   vec4 transformedPosition = projectionMatrix * mvPosition;
   vViewUv = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-  vViewUv.xyz /= vViewUv.w;
-  vViewUv.xy = (vViewUv.xy + 1.0) * 0.5;
+  // vViewUv.xyz /= vViewUv.w;
+  // vViewUv.xy = (vViewUv.xy + 1.0) * 0.5;
   
   vViewPosition = - mvPosition.xyz;
 
